@@ -1,0 +1,24 @@
+@import "tailwindcss";
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-height: 100%;
+  background: #000000;
+}
+
+body {
+  min-height: 100%;
+  background-color: #000000;
+  color: #ffffff;
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    "SF Pro Display",
+    "SF Pro Text",
+    system-ui,
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+}

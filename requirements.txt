@@ -1,0 +1,8 @@
+pydantic>=2,<3
+pydantic-settings>=2,<3
+anthropic
+requests
+typer
+python-dotenv
+fastapi
+uvicorn[standard]

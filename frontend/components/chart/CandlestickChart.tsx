@@ -14,6 +14,7 @@ type Props = {
 
 export type PeriodKey = "D" | "W" | "M";
 export type ChartType = "candle_solid" | "candle_stroke";
+export type IndicatorKey = "BOLL" | "MACD" | "RSI";
 
 type ChartControlsState = {
   period: PeriodKey;
@@ -24,13 +25,21 @@ type ChartControlsState = {
   setMaPeriods: React.Dispatch<React.SetStateAction<number[]>>;
   maInput: string;
   setMaInput: (value: string) => void;
+  activeIndicators: IndicatorKey[];
+  setActiveIndicators: React.Dispatch<React.SetStateAction<IndicatorKey[]>>;
 };
 
 type ChartInstance = NonNullable<ReturnType<typeof init>>;
 
 const DEFAULT_MA_PERIODS = [5, 20];
+const DEFAULT_ACTIVE_INDICATORS: IndicatorKey[] = [];
 const MA_COLORS = ["#F59E0B", "#34D399", "#60A5FA", "#F472B6", "#F87171", "#A78BFA"];
 const CHART_LOCALE = "zh-TW";
+const INDICATOR_PANES: Record<IndicatorKey, { id: string; height?: number }> = {
+  BOLL: { id: "candle_pane" },
+  MACD: { id: "macd_pane", height: 100 },
+  RSI: { id: "rsi_pane", height: 100 },
+};
 
 const PERIOD_MAP: Record<PeriodKey, ChartPeriod> = {
   D: { type: "day", span: 1 },
@@ -63,10 +72,22 @@ export function ChartControlsProvider({ children }: { children: React.ReactNode 
   const [chartType, setChartType] = useState<ChartType>("candle_solid");
   const [maPeriods, setMaPeriods] = useState<number[]>(DEFAULT_MA_PERIODS);
   const [maInput, setMaInput] = useState("");
+  const [activeIndicators, setActiveIndicators] = useState<IndicatorKey[]>(DEFAULT_ACTIVE_INDICATORS);
 
   return (
     <ChartControlsContext.Provider
-      value={{ period, setPeriod, chartType, setChartType, maPeriods, setMaPeriods, maInput, setMaInput }}
+      value={{
+        period,
+        setPeriod,
+        chartType,
+        setChartType,
+        maPeriods,
+        setMaPeriods,
+        maInput,
+        setMaInput,
+        activeIndicators,
+        setActiveIndicators,
+      }}
     >
       {children}
     </ChartControlsContext.Provider>
@@ -89,6 +110,8 @@ export function useChartControls() {
     setMaPeriods: () => undefined,
     maInput: "",
     setMaInput: () => undefined,
+    activeIndicators: DEFAULT_ACTIVE_INDICATORS,
+    setActiveIndicators: () => undefined,
   };
 }
 
@@ -215,13 +238,13 @@ export function CandlestickChart({
   stockId,
   startDate,
   endDate,
-  chartType = "candle_solid",
+  chartType: initialChartType = "candle_solid",
 }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<ChartInstance | null>(null);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
   const chartDataRef = useRef<KLineData[]>([]);
-  const { period, maPeriods } = useChartControls();
+  const { period, chartType = initialChartType, maPeriods, activeIndicators } = useChartControls();
 
   const [bars, setBars] = useState<StockBar[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -418,6 +441,36 @@ export function CandlestickChart({
     chart.resetData();
     chart.scrollToRealTime();
   }, [bars, maPeriods, period]);
+
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart) {
+      return;
+    }
+
+    const activeIndicatorSet = new Set(activeIndicators);
+
+    (Object.entries(INDICATOR_PANES) as Array<[IndicatorKey, (typeof INDICATOR_PANES)[IndicatorKey]]>).forEach(
+      ([indicator, paneOptions]) => {
+        const isActive = activeIndicatorSet.has(indicator);
+        const exists = chart.getIndicators({ paneId: paneOptions.id, name: indicator }).length > 0;
+
+        if (isActive && !exists) {
+          chart.createIndicator(indicator, false, paneOptions);
+          return;
+        }
+
+        if (!isActive && exists) {
+          if (paneOptions.id === "candle_pane") {
+            chart.removeIndicator({ paneId: paneOptions.id, name: indicator });
+            return;
+          }
+
+          chart.removeIndicator({ paneId: paneOptions.id });
+        }
+      },
+    );
+  }, [activeIndicators, stockId]);
 
   return (
     <div className="relative overflow-hidden bg-black" style={{ height: "calc(100vh - 160px)" }}>

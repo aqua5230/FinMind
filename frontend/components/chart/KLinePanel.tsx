@@ -6,11 +6,13 @@ import {
   normalizeMaPeriod,
   useChartControls,
   type ChartType,
+  type IndicatorKey,
 } from "@/components/chart/CandlestickChart";
 import { PillButton } from "@/components/ui/PillButton";
 
 type Props = { stockId: string; startDate: string; endDate: string };
 const CHART_TYPE_BUTTON_CLASS = "rounded-lg px-3 py-1 text-xs transition";
+const INDICATOR_TOGGLES: IndicatorKey[] = ["BOLL", "MACD", "RSI"];
 
 function getChartTypeButtonClass(active: boolean) {
   return [
@@ -22,8 +24,18 @@ function getChartTypeButtonClass(active: boolean) {
 }
 
 function ChartControls() {
-  const { period, setPeriod, chartType, setChartType, maPeriods, setMaPeriods, maInput, setMaInput } =
-    useChartControls();
+  const {
+    period,
+    setPeriod,
+    chartType,
+    setChartType,
+    maPeriods,
+    setMaPeriods,
+    maInput,
+    setMaInput,
+    activeIndicators,
+    setActiveIndicators,
+  } = useChartControls();
 
   function addMaPeriod() {
     const normalized = normalizeMaPeriod(maInput);
@@ -43,6 +55,14 @@ function ChartControls() {
 
   function removeMaPeriod(target: number) {
     setMaPeriods((current) => current.filter((value) => value !== target));
+  }
+
+  function toggleIndicator(indicator: IndicatorKey) {
+    setActiveIndicators((current) =>
+      current.includes(indicator)
+        ? current.filter((value) => value !== indicator)
+        : [...current, indicator],
+    );
   }
 
   return (
@@ -75,6 +95,21 @@ function ChartControls() {
           >
             {label}
           </button>
+        ))}
+      </div>
+
+      <div className="mx-1 h-4 w-px bg-[#3A3A3C]" />
+
+      <div className="flex flex-wrap items-center gap-1">
+        {INDICATOR_TOGGLES.map((indicator) => (
+          <PillButton
+            key={indicator}
+            active={activeIndicators.includes(indicator)}
+            onClick={() => toggleIndicator(indicator)}
+            className="h-7 px-3 py-0 text-xs"
+          >
+            {indicator}
+          </PillButton>
         ))}
       </div>
 

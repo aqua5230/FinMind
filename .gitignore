@@ -12,7 +12,7 @@ frontend/node_modules/
 frontend/.next/
 frontend/.env.local
 *.pdf
-stock_report/
+
 scripts/
 tests/
 codex_arch_review.md

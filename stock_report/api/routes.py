@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-import time
+import logging
 
+from cachetools import TTLCache
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, ConfigDict
 
@@ -14,10 +15,9 @@ from stock_report.services.report_service import ReportService
 router = APIRouter(prefix="/api")
 service = ReportService()
 _finmind = FinMindClient()
+logger = logging.getLogger(__name__)
 
-_stocks_cache: list[dict] | None = None
-_stocks_cache_time: float = 0
-_CACHE_TTL = 86400  # 24 小時
+_stocks_cache: TTLCache[str, list[dict]] = TTLCache(maxsize=1, ttl=3600)
 
 
 class ReportRequest(BaseModel):
@@ -155,10 +155,10 @@ def _is_quota_error(exc: FinMindAPIError) -> bool:
 
 @router.get("/stocks")
 def get_stocks() -> list[dict]:
-    global _stocks_cache, _stocks_cache_time
-    now = time.time()
-    if _stocks_cache is not None and (now - _stocks_cache_time) < _CACHE_TTL:
-        return _stocks_cache
+    cached = _stocks_cache.get("stocks")
+    if cached is not None:
+        return cached
+
     try:
         rows = _finmind.fetch("TaiwanStockInfo", "", "", "")
         stocks = [
@@ -166,8 +166,8 @@ def get_stocks() -> list[dict]:
             for r in rows
             if str(r.get("stock_id", "")).isdigit()
         ]
-        _stocks_cache = stocks
-        _stocks_cache_time = now
+        _stocks_cache["stocks"] = stocks
         return stocks
-    except Exception:
-        return _stocks_cache or []
+    except Exception as exc:
+        logger.exception("Failed to fetch stocks list")
+        raise HTTPException(status_code=502, detail="Failed to fetch stocks list") from exc

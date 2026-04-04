@@ -40,6 +40,10 @@ const INDICATOR_PANES: Record<IndicatorKey, { id: string; height?: number }> = {
   MACD: { id: "macd_pane", height: 100 },
   RSI: { id: "rsi_pane", height: 100 },
 };
+const INDICATOR_PRECISIONS: Partial<Record<IndicatorKey, number>> = {
+  MACD: 2,
+  RSI: 2,
+};
 
 const PERIOD_MAP: Record<PeriodKey, ChartPeriod> = {
   D: { type: "day", span: 1 },
@@ -457,6 +461,16 @@ export function CandlestickChart({
 
         if (isActive && !exists) {
           chart.createIndicator(indicator, false, paneOptions);
+
+          const precision = INDICATOR_PRECISIONS[indicator];
+          if (precision !== undefined) {
+            chart.overrideIndicator({
+              name: indicator,
+              calcParams: [],
+              precision,
+            } as Parameters<typeof chart.overrideIndicator>[0]);
+          }
+
           return;
         }
 

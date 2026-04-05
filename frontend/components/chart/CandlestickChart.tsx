@@ -1,6 +1,6 @@
 "use client";
 
-import { dispose, init, registerIndicator, registerLocale, type KLineData, type Period as ChartPeriod } from "klinecharts";
+import { dispose, init, registerLocale, type KLineData, type Period as ChartPeriod } from "klinecharts";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { useStockData } from "@/hooks/useStockData";
 import type { StockBar } from "@/lib/types";
@@ -13,7 +13,7 @@ type Props = {
 };
 
 export type PeriodKey = "D" | "W" | "M";
-export type ChartType = "candle_solid" | "candle_stroke" | "candle_moomoo";
+export type ChartType = "candle_solid" | "candle_stroke";
 export type IndicatorKey = "BOLL" | "MACD" | "RSI";
 
 type ChartControlsState = {
@@ -35,7 +35,6 @@ const DEFAULT_MA_PERIODS = [5, 20];
 const DEFAULT_ACTIVE_INDICATORS: IndicatorKey[] = [];
 const MA_COLORS = ["#C4956A", "#7FA9A0", "#9BABB8", "#B69DB8", "#8FAF8F", "#BF9D9D"];
 const CHART_LOCALE = "zh-TW";
-const MOOMOO_CANDLE_INDICATOR = "MOOMOO_CANDLE";
 const UP_COLOR = "#FF453A";
 const DOWN_COLOR = "#30D158";
 const NO_CHANGE_COLOR = "#8E8E93";
@@ -55,42 +54,21 @@ const PERIOD_MAP: Record<PeriodKey, ChartPeriod> = {
   M: { type: "month", span: 1 },
 };
 
-type MoomooCandleData = {
-  timestamp: number;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  prevClose: number | null;
-};
-
-function getMoomooColor(close: number, referenceClose: number) {
-  if (close > referenceClose) {
-    return UP_COLOR;
-  }
-  if (close < referenceClose) {
-    return DOWN_COLOR;
-  }
-  return NO_CHANGE_COLOR;
-}
-
 function getCandleStyles(chartType: ChartType) {
-  const isMoomoo = chartType === "candle_moomoo";
-
   return {
     candle: {
-      type: isMoomoo ? "candle_solid" : chartType,
+      type: chartType,
       bar: {
-        upColor: isMoomoo ? "rgba(0, 0, 0, 0)" : UP_COLOR,
-        downColor: isMoomoo ? "rgba(0, 0, 0, 0)" : DOWN_COLOR,
-        noChangeColor: isMoomoo ? "rgba(0, 0, 0, 0)" : NO_CHANGE_COLOR,
+        upColor: UP_COLOR,
+        downColor: DOWN_COLOR,
+        noChangeColor: NO_CHANGE_COLOR,
         compareRule: "current_open" as const,
-        upBorderColor: isMoomoo ? "rgba(0, 0, 0, 0)" : UP_COLOR,
-        downBorderColor: isMoomoo ? "rgba(0, 0, 0, 0)" : DOWN_COLOR,
-        noChangeBorderColor: isMoomoo ? "rgba(0, 0, 0, 0)" : NO_CHANGE_COLOR,
-        upWickColor: isMoomoo ? "rgba(0, 0, 0, 0)" : UP_COLOR,
-        downWickColor: isMoomoo ? "rgba(0, 0, 0, 0)" : DOWN_COLOR,
-        noChangeWickColor: isMoomoo ? "rgba(0, 0, 0, 0)" : NO_CHANGE_COLOR,
+        upBorderColor: UP_COLOR,
+        downBorderColor: DOWN_COLOR,
+        noChangeBorderColor: NO_CHANGE_COLOR,
+        upWickColor: UP_COLOR,
+        downWickColor: DOWN_COLOR,
+        noChangeWickColor: NO_CHANGE_COLOR,
       },
       priceMark: {
         last: {
@@ -109,80 +87,6 @@ function getCandleStyles(chartType: ChartType) {
     },
   };
 }
-
-registerIndicator<MoomooCandleData>({
-  name: MOOMOO_CANDLE_INDICATOR,
-  shortName: "",
-  series: "price",
-  precision: 2,
-  zLevel: 20,
-  shouldOhlc: false,
-  figures: [],
-  calc: (dataList) =>
-    dataList.map((data, index) => ({
-      timestamp: data.timestamp,
-      open: data.open,
-      high: data.high,
-      low: data.low,
-      close: data.close,
-      prevClose: index > 0 ? dataList[index - 1]?.close ?? null : null,
-    })),
-  draw: ({ ctx, chart, indicator, bounding, xAxis, yAxis }) => {
-    const visibleRange = chart.getVisibleRange();
-    const barSpace = chart.getBarSpace();
-    const start = Math.max(0, Math.floor(visibleRange.realFrom) - 1);
-    const end = Math.min(indicator.result.length - 1, Math.ceil(visibleRange.realTo) + 1);
-    const bodyWidth = Math.max(3, Math.floor(barSpace.bar * 0.72));
-    const crispBodyWidth = Math.max(1, bodyWidth - 1);
-
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(bounding.left, bounding.top, bounding.width, bounding.height);
-    ctx.clip();
-    ctx.lineWidth = 1;
-
-    for (let index = start; index <= end; index += 1) {
-      const item = indicator.result[index];
-      if (!item || typeof item.timestamp !== "number") {
-        continue;
-      }
-
-      const referenceClose = item.prevClose ?? item.open;
-      const color = getMoomooColor(item.close, referenceClose);
-      const x = xAxis.convertTimestampToPixel(item.timestamp);
-      const highY = yAxis.convertToPixel(item.high);
-      const lowY = yAxis.convertToPixel(item.low);
-      const openY = yAxis.convertToPixel(item.open);
-      const closeY = yAxis.convertToPixel(item.close);
-      const bodyTop = Math.min(openY, closeY);
-      const bodyBottom = Math.max(openY, closeY);
-      const bodyHeight = Math.max(1, Math.round(bodyBottom - bodyTop));
-      const wickX = Math.round(x) + 0.5;
-
-      ctx.strokeStyle = color;
-      ctx.fillStyle = color;
-
-      ctx.beginPath();
-      ctx.moveTo(wickX, Math.round(highY) + 0.5);
-      ctx.lineTo(wickX, Math.round(lowY) + 0.5);
-      ctx.stroke();
-
-      if (item.close > item.open) {
-        const strokeX = Math.round(x - bodyWidth / 2) + 0.5;
-        const strokeY = Math.round(bodyTop) + 0.5;
-        ctx.strokeRect(strokeX, strokeY, crispBodyWidth, bodyHeight);
-        continue;
-      }
-
-      const fillX = Math.round(x - bodyWidth / 2);
-      const fillY = Math.round(bodyTop);
-      ctx.fillRect(fillX, fillY, bodyWidth, bodyHeight);
-    }
-
-    ctx.restore();
-    return true;
-  },
-});
 
 registerLocale(CHART_LOCALE, {
   time: "時間: ",
@@ -339,28 +243,6 @@ function replaceChartData(chart: ChartInstance, data: KLineData[]) {
   chart.resetData();
 }
 
-function syncMoomooIndicator(chart: ChartInstance, enabled: boolean) {
-  const exists = chart.getIndicators({ paneId: "candle_pane", name: MOOMOO_CANDLE_INDICATOR }).length > 0;
-
-  if (enabled && !exists) {
-    chart.createIndicator(
-      {
-        name: MOOMOO_CANDLE_INDICATOR,
-        shortName: "",
-        series: "price",
-        precision: 2,
-      },
-      false,
-      { id: "candle_pane" },
-    );
-    return;
-  }
-
-  if (!enabled && exists) {
-    chart.removeIndicator({ paneId: "candle_pane", name: MOOMOO_CANDLE_INDICATOR });
-  }
-}
-
 function getMaStyles(periods: number[]) {
   return {
     lines: periods.map((_, index) => ({
@@ -463,7 +345,6 @@ export function CandlestickChart({
         callback(chartDataRef.current, { backward: false, forward: false });
       },
     });
-    syncMoomooIndicator(chart, initialChartType === "candle_moomoo");
     chart.createIndicator("MA", true, { id: "candle_pane" });
     chart.createIndicator("VOL", false, { id: "vol_pane", height: 80 });
     chart.setPaneOptions({ id: "candle_pane", minHeight: 250 });
@@ -504,7 +385,6 @@ export function CandlestickChart({
 
     try {
       chart.setStyles(getCandleStyles(chartType));
-      syncMoomooIndicator(chart, chartType === "candle_moomoo");
     } catch (error) {
       console.error("Failed to switch candle chart type", error);
     }

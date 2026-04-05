@@ -85,7 +85,6 @@ function ChartControls() {
         {([
           { key: "candle_solid", label: "實心" },
           { key: "candle_stroke", label: "空心" },
-          { key: "candle_moomoo", label: "港式" },
         ] as const).map(({ key, label }) => (
           <button
             key={key}

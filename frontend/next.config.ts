@@ -17,6 +17,10 @@ const nextConfig: NextConfig = {
   devIndicators: false,
   allowedDevOrigins: ["192.168.0.7"],
   generateBuildId: async () => `build-${Date.now()}`,
+  webpack: (config) => {
+    config.cache = false;
+    return config;
+  },
   async rewrites() {
     return [
       {

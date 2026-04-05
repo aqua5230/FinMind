@@ -1,6 +1,6 @@
 {
   "build": {
-    "buildCommand": "rm -rf .next && npm run build"
+    "buildCommand": "npm run build"
   },
   "deploy": {
     "startCommand": "npx next start -p $PORT",

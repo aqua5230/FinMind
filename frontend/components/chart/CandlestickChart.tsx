@@ -272,7 +272,7 @@ export function CandlestickChart({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<ChartInstance | null>(null);
   const periodRef = useRef<PeriodKey>("D");
-  const chartDataRef = useRef<KLineData[]>([]); console.log("FINMIND_DEPLOY_CHECK_v5"); // v5
+  const chartDataRef = useRef<KLineData[]>([]);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
   const { period, chartType = initialChartType, maPeriods, activeIndicators } = useChartControls();
   const { data: bars, loading: isLoading, error } = useStockData(stockId, startDate, endDate);

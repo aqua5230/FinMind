@@ -416,6 +416,7 @@ export function CandlestickChart({
     }
 
     const activeIndicatorSet = new Set(activeIndicators);
+    let anyCreated = false;
 
     (Object.entries(INDICATOR_PANES) as Array<[IndicatorKey, (typeof INDICATOR_PANES)[IndicatorKey]]>).forEach(
       ([indicator, paneOptions]) => {
@@ -434,6 +435,7 @@ export function CandlestickChart({
             } as Parameters<typeof chart.overrideIndicator>[0]);
           }
 
+          anyCreated = true;
           return;
         }
 
@@ -447,6 +449,10 @@ export function CandlestickChart({
         }
       },
     );
+
+    if (anyCreated) {
+      replaceChartData(chart, chartDataRef.current);
+    }
   }, [activeIndicators, isLoading, stockId]);
 
   return (

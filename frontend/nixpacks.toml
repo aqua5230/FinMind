@@ -1,0 +1,6 @@
+[phases.build]
+cmds = ["npm run build"]
+cache_directories = []
+
+[phases.install]
+cache_directories = []

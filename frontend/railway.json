@@ -1,7 +1,4 @@
 {
-  "build": {
-    "builder": "NIXPACKS"
-  },
   "deploy": {
     "startCommand": "npx next start -p $PORT",
     "healthcheckPath": "/",

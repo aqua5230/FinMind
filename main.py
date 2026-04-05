@@ -23,3 +23,8 @@ app.add_middleware(
 )
 
 app.include_router(router)
+
+
+@app.get("/")
+def root() -> dict[str, str]:
+    return {"status": "ok"}

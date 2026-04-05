@@ -16,7 +16,7 @@ class ServiceSettings(BaseModel):
 class GenerationSettings(BaseModel):
     model_config = {"protected_namespaces": ()}
 
-    model_name: str = Field(default="claude-3-5-sonnet-latest", description="Claude model name.")
+    model_name: str = Field(default="claude-3-5-sonnet-latest", description="LLM model name.")
     max_tokens: int = Field(default=2048, ge=1, description="Maximum output tokens for report generation.")
     temperature: float = Field(default=0.2, ge=0.0, le=1.0, description="Sampling temperature.")
 
@@ -30,7 +30,8 @@ class Settings(BaseSettings):
     )
 
     finmind_token: str | None = Field(default=None, alias="FINMIND_TOKEN")
-    claude_api_key: str | None = Field(default=None, alias="CLAUDE_API_KEY")
+    llm_api_key: str | None = Field(default=None, alias="LLM_API_KEY")
+    api_key: str | None = Field(default=None, alias="API_KEY")
     deepseek_api_key: str | None = Field(default=None, alias="DEEPSEEK_API_KEY")
     deepseek_model: str = Field(default="deepseek-chat", alias="DEEPSEEK_MODEL")
     gemini_api_key: str | None = Field(default=None, alias="GEMINI_API_KEY")

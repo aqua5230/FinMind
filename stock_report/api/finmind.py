@@ -60,15 +60,6 @@ class FinMindClient(BaseAPIClient):
         logger.info("Fetched dataset=%s records=%s", dataset, len(data))
         return data
 
-    def fetch_dataset(
-        self,
-        dataset: str,
-        data_id: str,
-        start_date: str,
-        end_date: str,
-    ) -> list[dict[str, Any]]:
-        return self.fetch(dataset, data_id, start_date, end_date)
-
     def _handle_response(self, response: requests.Response) -> dict[str, Any]:
         if response.status_code == 402:
             raise FinMindAPIError("quota exceeded", 402)

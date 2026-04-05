@@ -13,7 +13,7 @@ class FinMindAPIError(FinMindBaseError):
         super().__init__(detail)
 
 
-class ClaudeAPIError(FinMindBaseError):
+class LLMAPIError(FinMindBaseError):
     def __init__(self, msg: str, status_code: int | None = None) -> None:
         self.msg = msg
         self.status_code = status_code

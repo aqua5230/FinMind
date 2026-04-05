@@ -6,13 +6,13 @@ from typing import Any
 import requests
 
 from stock_report.config import settings
-from stock_report.exceptions import ClaudeAPIError
+from stock_report.exceptions import LLMAPIError
 
 
 class GeminiClient:
     def __init__(self) -> None:
         if not settings.gemini_api_key:
-            raise ClaudeAPIError("GEMINI_API_KEY not set")
+            raise LLMAPIError("GEMINI_API_KEY not set")
 
         self.api_key = settings.gemini_api_key
         self.model = settings.gemini_model
@@ -42,21 +42,21 @@ class GeminiClient:
                 timeout=settings.service.timeout,
             )
         except requests.RequestException as exc:
-            raise ClaudeAPIError(self._sanitize_message(str(exc))) from exc
+            raise LLMAPIError(self._sanitize_message(str(exc))) from exc
 
         if response.status_code == 429:
-            raise ClaudeAPIError("quota exceeded", 429)
+            raise LLMAPIError("quota exceeded", 429)
         if response.status_code != 200:
-            raise ClaudeAPIError(self._extract_error_message(response), response.status_code)
+            raise LLMAPIError(self._extract_error_message(response), response.status_code)
 
         try:
             payload = response.json()
         except ValueError as exc:
-            raise ClaudeAPIError("Invalid JSON response", response.status_code) from exc
+            raise LLMAPIError("Invalid JSON response", response.status_code) from exc
 
         text = self._extract_text(payload)
         if not text:
-            raise ClaudeAPIError("Empty Gemini response", response.status_code)
+            raise LLMAPIError("Empty Gemini response", response.status_code)
         return text
 
     @staticmethod

@@ -5,7 +5,7 @@ from typing import Any
 from stock_report.api.deepseek import DeepSeekClient
 from stock_report.api.gemini import GeminiClient
 from stock_report.config import settings
-from stock_report.exceptions import ClaudeAPIError
+from stock_report.exceptions import FinMindBaseError
 from stock_report.models import FinancialData, ReportMetrics, StockReport
 
 
@@ -214,4 +214,4 @@ class ReportGenerator:
             return DeepSeekClient()
         if settings.gemini_api_key:
             return GeminiClient()
-        raise ClaudeAPIError("Neither DEEPSEEK_API_KEY nor GEMINI_API_KEY is set")
+        raise FinMindBaseError("Neither DEEPSEEK_API_KEY nor GEMINI_API_KEY is set")

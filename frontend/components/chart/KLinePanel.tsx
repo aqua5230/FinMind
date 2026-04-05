@@ -11,15 +11,13 @@ import {
 import { PillButton } from "@/components/ui/PillButton";
 
 type Props = { stockId: string; startDate: string; endDate: string };
-const CHART_TYPE_BUTTON_CLASS = "rounded-lg px-3 py-1 text-xs transition";
+const TEXT_TOGGLE_BUTTON_CLASS = "rounded-md px-3 py-1 text-xs transition";
 const INDICATOR_TOGGLES: IndicatorKey[] = ["BOLL", "MACD", "RSI"];
 
 function getChartTypeButtonClass(active: boolean) {
   return [
-    CHART_TYPE_BUTTON_CLASS,
-    active
-      ? "bg-[#3A3A3C] text-white"
-      : "border border-[#3A3A3C] bg-transparent text-[#8E8E93] hover:bg-[#2C2C2E]",
+    TEXT_TOGGLE_BUTTON_CLASS,
+    active ? "bg-[#3A3A3C] text-white" : "bg-transparent text-[#8E8E93] hover:text-white",
   ].join(" ");
 }
 
@@ -67,18 +65,19 @@ function ChartControls() {
 
   return (
     <div className="flex flex-wrap items-center gap-6 border-b border-[#3A3A3C] bg-[#1C1C1E] px-6 py-3">
-      <div className="flex gap-0.5">
-        {(["D", "W", "M"] as const).map((key) => (
-          <PillButton
-            key={key}
-            active={period === key}
-            onClick={() => setPeriod(key)}
-            className="h-7 min-w-10 px-0 py-0 text-xs"
-          >
-            {key === "D" ? "日" : key === "W" ? "週" : "月"}
-          </PillButton>
-        ))}
-      </div>
+      <label className="flex items-center gap-2 text-xs text-[#8E8E93]">
+        週期
+        <select
+          value={period}
+          onChange={(event) => setPeriod(event.currentTarget.value as "D" | "W" | "M")}
+          className="h-8 rounded-md border border-[#3A3A3C] bg-[#2C2C2E] px-3 text-xs text-white outline-none transition focus:border-[#0A84FF]"
+          aria-label="Select chart period"
+        >
+          <option value="D">日線</option>
+          <option value="W">週線</option>
+          <option value="M">月線</option>
+        </select>
+      </label>
 
       <div className="mx-1 h-4 w-px bg-[#3A3A3C]" />
 
@@ -86,6 +85,7 @@ function ChartControls() {
         {([
           { key: "candle_solid", label: "實心" },
           { key: "candle_stroke", label: "空心" },
+          { key: "candle_moomoo", label: "港式" },
         ] as const).map(({ key, label }) => (
           <button
             key={key}
@@ -153,17 +153,10 @@ function ChartControls() {
 }
 
 function KLinePanelContent({ stockId, startDate, endDate }: Props) {
-  const { chartType } = useChartControls();
-
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-black">
       <ChartControls />
-      <CandlestickChart
-        stockId={stockId}
-        startDate={startDate}
-        endDate={endDate}
-        chartType={chartType}
-      />
+      <CandlestickChart stockId={stockId} startDate={startDate} endDate={endDate} />
     </div>
   );
 }

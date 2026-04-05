@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import logging
+from datetime import date
 
 from cachetools import TTLCache
-from fastapi import APIRouter, HTTPException, Query
-from pydantic import BaseModel, ConfigDict
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
+from pydantic import BaseModel, ConfigDict, model_validator
 
 from stock_report.api.finmind import FinMindClient
+from stock_report.config import settings
 from stock_report.exceptions import FinMindAPIError, FinMindBaseError, InvalidStockError
 from stock_report.models import StockReport
 from stock_report.services.report_service import ReportService
@@ -18,6 +20,7 @@ _finmind = FinMindClient()
 logger = logging.getLogger(__name__)
 
 _stocks_cache: TTLCache[str, list[dict]] = TTLCache(maxsize=1, ttl=3600)
+_price_cache: TTLCache[str, PriceResponse] = TTLCache(maxsize=200, ttl=600)
 
 
 class ReportRequest(BaseModel):
@@ -47,13 +50,55 @@ class PriceResponse(BaseModel):
     prices: list[PriceBar]
 
 
+class PriceQueryParams(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    start_date: date
+    end_date: date
+
+    @model_validator(mode="after")
+    def validate_date_range(self) -> PriceQueryParams:
+        if self.start_date > self.end_date:
+            raise ValueError("start_date cannot be greater than end_date")
+        return self
+
+
+def _map_price_row(row: dict) -> PriceBar | None:
+    try:
+        bar = PriceBar(
+            date=str(row["date"]),
+            open=float(row["open"]),
+            high=float(row["max"]),
+            low=float(row["min"]),
+            close=float(row["close"]),
+            volume=int(row["Trading_Volume"]),
+        )
+        if bar.open <= 0 or bar.high <= 0 or bar.low <= 0 or bar.close <= 0:
+            return None
+        return bar
+    except (KeyError, TypeError, ValueError):
+        logger.warning("Skipping malformed price row: %s", row)
+        return None
+
+
 @router.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
+def verify_api_key(x_api_key: str | None = Header(default=None, alias="X-API-Key")) -> None:
+    if not settings.api_key:
+        return
+
+    if x_api_key != settings.api_key:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+
 @router.post("/report", response_model=StockReport)
-def create_report(payload: ReportRequest) -> StockReport:
+def create_report(
+    payload: ReportRequest,
+    _: None = Depends(verify_api_key),
+) -> StockReport:
     return _generate_report(
         stock_id=payload.stock_id,
         year=payload.year,
@@ -68,7 +113,8 @@ def get_report(
     year: int = Query(default=2024),
     start_year: int | None = Query(default=None),
     end_year: int | None = Query(default=None),
-    ) -> StockReport:
+    _: None = Depends(verify_api_key),
+) -> StockReport:
     return _generate_report(
         stock_id=stock_id,
         year=year,
@@ -80,9 +126,15 @@ def get_report(
 @router.get("/price/{stock_id}", response_model=PriceResponse)
 def get_price(
     stock_id: str,
-    start_date: str = Query(...),
-    end_date: str = Query(...),
+    params: PriceQueryParams = Depends(),
 ) -> PriceResponse:
+    start_date = params.start_date.isoformat()
+    end_date = params.end_date.isoformat()
+    cache_key = f"{stock_id}:{start_date}:{end_date}"
+    cached = _price_cache.get(cache_key)
+    if cached is not None:
+        return cached
+
     try:
         raw = _finmind.fetch("TaiwanStockPrice", stock_id, start_date, end_date)
     except FinMindAPIError as exc:
@@ -93,23 +145,15 @@ def get_price(
 
     prices: list[PriceBar] = []
     for row in raw:
-        try:
-            prices.append(
-                PriceBar(
-                    date=str(row["date"]),
-                    open=float(row["open"]),
-                    high=float(row["max"]),
-                    low=float(row["min"]),
-                    close=float(row["close"]),
-                    volume=int(row["Trading_Volume"]),
-                )
-            )
-        except (KeyError, TypeError, ValueError):
-            continue
+        price = _map_price_row(row)
+        if price is not None:
+            prices.append(price)
 
     prices = [p for p in prices if start_date <= p.date <= end_date]
     prices.sort(key=lambda item: item.date)
-    return PriceResponse(stock_id=stock_id, prices=prices)
+    response = PriceResponse(stock_id=stock_id, prices=prices)
+    _price_cache[cache_key] = response
+    return response
 
 
 def _generate_report(
@@ -145,8 +189,6 @@ def _generate_report(
         raise HTTPException(status_code=status_code, detail=exc.msg) from exc
     except FinMindBaseError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail="Internal server error") from exc
 
 
 def _is_quota_error(exc: FinMindAPIError) -> bool:
@@ -154,7 +196,7 @@ def _is_quota_error(exc: FinMindAPIError) -> bool:
 
 
 @router.get("/stocks")
-def get_stocks() -> list[dict]:
+def get_stocks(_: None = Depends(verify_api_key)) -> list[dict]:
     cached = _stocks_cache.get("stocks")
     if cached is not None:
         return cached
@@ -168,6 +210,6 @@ def get_stocks() -> list[dict]:
         ]
         _stocks_cache["stocks"] = stocks
         return stocks
-    except Exception as exc:
+    except FinMindBaseError as exc:
         logger.exception("Failed to fetch stocks list")
         raise HTTPException(status_code=502, detail="Failed to fetch stocks list") from exc

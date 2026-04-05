@@ -2,15 +2,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 
-
-def _to_quarter(date_value: str) -> str:
-    year, month, _ = date_value.split("-")
-    quarter_map = {"03": "Q1", "06": "Q2", "09": "Q3", "12": "Q4"}
-    return f"{year}{quarter_map[month]}"
-
-
-def _to_hundred_million(value: float | int) -> float:
-    return round(float(value) / 1e8, 2)
+from ._helpers import _to_hundred_million, _to_quarter
 
 
 def process(raw: list[dict]) -> dict:
@@ -24,6 +16,8 @@ def process(raw: list[dict]) -> dict:
             continue
 
         quarter = _to_quarter(str(row["date"]))
+        if quarter is None:
+            continue
         quarters_set.add(quarter)
         value = _to_hundred_million(row["value"])
         items[str(row["origin_name"])][quarter] = value
@@ -55,4 +49,3 @@ def process(raw: list[dict]) -> dict:
         "items": dict(items),
         "key_metrics": key_metrics,
     }
-

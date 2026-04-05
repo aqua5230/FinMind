@@ -1,0 +1,3 @@
+| 日期 | 任務 | 狀態 | 備注 |
+|------|------|------|------|
+| 2026-04-05 | 修復 Railway 部署後 K 線圖空白 | 成功 | 前端圖表原本依賴 `setDataLoader + resetData()` 在 chart 初始化後回補資料，部署環境容易先以空資料初始化，後續重載時機不穩定，導致只剩十字線沒有 candle。已在 `frontend/components/chart/CandlestickChart.tsx` 改成資料先同步到 ref、chart 建立完成後立即套用新資料，若 runtime 支援則優先走 `applyNewData`，否則 fallback `resetData()`；同時在 `frontend/lib/api.ts` 與 `frontend/hooks/useStockData.ts` 補上 API 錯誤 log，並把 `frontend/next.config.ts` 的 `/api` rewrite 改為優先讀 `NEXT_PUBLIC_API_BASE_URL` / `API_BASE_URL`，避免 Railway 後端 URL 寫死。已確認 `stock_report/api/routes.py` 的 `/api/price/{stock_id}` 仍回傳 `{ stock_id, prices[] }` 格式，`frontend/railway.json` 的 `startCommand` 可正常配合 Next build 後啟動。 |

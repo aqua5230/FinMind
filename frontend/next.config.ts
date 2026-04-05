@@ -18,7 +18,9 @@ const nextConfig: NextConfig = {
   allowedDevOrigins: ["192.168.0.7"],
   generateBuildId: async () => `build-${Date.now()}`,
   webpack: (config) => {
-    config.cache = false;
+    if (config.cache && typeof config.cache === "object") {
+      (config.cache as Record<string, unknown>).version = process.env.BUILD_CACHE_BUST ?? String(Date.now());
+    }
     return config;
   },
   async headers() {

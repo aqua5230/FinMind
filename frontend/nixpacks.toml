@@ -1,5 +1,5 @@
 [phases.build]
-cmds = ["npm run build"]
+cmds = ["rm -rf node_modules/.cache .next/cache", "npm run build"]
 cache_directories = []
 
 [phases.install]

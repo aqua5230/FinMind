@@ -505,7 +505,6 @@ export function CandlestickChart({
     try {
       chart.setStyles(getCandleStyles(chartType));
       syncMoomooIndicator(chart, chartType === "candle_moomoo");
-      replaceChartData(chart, chartDataRef.current);
     } catch (error) {
       console.error("Failed to switch candle chart type", error);
     }

@@ -21,6 +21,14 @@ const nextConfig: NextConfig = {
     config.cache = false;
     return config;
   },
+  async headers() {
+    return [
+      {
+        source: "/",
+        headers: [{ key: "Cache-Control", value: "no-store" }],
+      },
+    ];
+  },
   async rewrites() {
     return [
       {

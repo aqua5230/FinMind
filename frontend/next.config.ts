@@ -16,6 +16,7 @@ const backendUrl =
 const nextConfig: NextConfig = {
   devIndicators: false,
   allowedDevOrigins: ["192.168.0.7"],
+  generateBuildId: async () => `build-${Date.now()}`,
   async rewrites() {
     return [
       {

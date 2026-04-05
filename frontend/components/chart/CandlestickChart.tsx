@@ -1,7 +1,7 @@
 "use client";
 
 import { dispose, init, registerLocale, type KLineData, type Period as ChartPeriod } from "klinecharts";
-import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useStockData } from "@/hooks/useStockData";
 import type { StockBar } from "@/lib/types";
 
@@ -276,7 +276,7 @@ export function CandlestickChart({
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
   const { period, chartType = initialChartType, maPeriods, activeIndicators } = useChartControls();
   const { data: bars, loading: isLoading, error } = useStockData(stockId, startDate, endDate);
-  const nextData = toKLineData(aggregateBars(sortBars(bars), period));
+  const nextData = useMemo(() => toKLineData(aggregateBars(sortBars(bars), period)), [bars, period]);
 
   useEffect(() => {
     chartDataRef.current = nextData;
@@ -430,7 +430,6 @@ export function CandlestickChart({
           if (precision !== undefined) {
             chart.overrideIndicator({
               name: indicator,
-              calcParams: [],
               precision,
             } as Parameters<typeof chart.overrideIndicator>[0]);
           }

@@ -272,7 +272,7 @@ export function CandlestickChart({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<ChartInstance | null>(null);
   const periodRef = useRef<PeriodKey>("D");
-  const chartDataRef = useRef<KLineData[]>([]);
+  const chartDataRef = useRef<KLineData[]>([]); // v4
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
   const { period, chartType = initialChartType, maPeriods, activeIndicators } = useChartControls();
   const { data: bars, loading: isLoading, error } = useStockData(stockId, startDate, endDate);

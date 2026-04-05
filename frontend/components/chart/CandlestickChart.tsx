@@ -447,7 +447,7 @@ export function CandlestickChart({
         }
       },
     );
-  }, [activeIndicators, stockId]);
+  }, [activeIndicators, isLoading, stockId]);
 
   return (
     <div className="relative overflow-hidden bg-black" style={{ height: "calc(100vh - 160px)" }}>

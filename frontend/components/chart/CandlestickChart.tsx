@@ -389,6 +389,7 @@ export function CandlestickChart({
 }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<ChartInstance | null>(null);
+  const periodRef = useRef<PeriodKey>("D");
   const chartDataRef = useRef<KLineData[]>([]);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
   const { period, chartType = initialChartType, maPeriods, activeIndicators } = useChartControls();
@@ -398,6 +399,7 @@ export function CandlestickChart({
   useEffect(() => {
     chartDataRef.current = nextData;
   }, [nextData]);
+  useEffect(() => { periodRef.current = period; }, [period]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -455,6 +457,7 @@ export function CandlestickChart({
     }
 
     chart.setSymbol({ ticker: stockId, pricePrecision: 2, volumePrecision: 0 });
+    chart.setPeriod(PERIOD_MAP[periodRef.current]);
     chart.setDataLoader({
       getBars: ({ callback }) => {
         callback(chartDataRef.current, { backward: false, forward: false });

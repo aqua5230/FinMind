@@ -4,8 +4,8 @@ import { useCallback, useState } from "react";
 import { KLinePanel } from "@/components/chart/KLinePanel";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { StockInfoBar } from "@/components/layout/StockInfoBar";
-import { fetchStockName } from "@/lib/api";
-import type { StockState } from "@/lib/types";
+import { fetchLatestPrice, resolveStockId } from "@/lib/api";
+import type { LatestPrice, StockState } from "@/lib/types";
 
 const START_DATE = "2000-01-01";
 
@@ -15,20 +15,23 @@ function getEndDate(): string {
 
 export default function Home() {
   const [stock, setStock] = useState<StockState | null>(null);
+  const [latestPrice, setLatestPrice] = useState<LatestPrice | null>(null);
   const [error, setError] = useState("");
 
   const handleSearch = useCallback(async (stockId: string) => {
-    const id = stockId.trim().toUpperCase();
-    if (!id) {
+    if (!stockId.trim()) {
       setError("請輸入股票代號");
       return;
     }
     try {
-      const stockName = await fetchStockName(id);
+      const { stockId: id, stockName } = await resolveStockId(stockId);
+      const lp = await fetchLatestPrice(id);
       setError("");
+      setLatestPrice(lp);
       setStock({ stockId: id, stockName, startDate: START_DATE, endDate: getEndDate() });
-    } catch {
-      setError("查詢失敗，請稍後再試");
+    } catch (err) {
+      setLatestPrice(null);
+      setError(err instanceof Error ? err.message : "查詢失敗，請稍後再試");
     }
   }, []);
 
@@ -42,6 +45,7 @@ export default function Home() {
           stockName={stock.stockName}
           startDate={stock.startDate}
           endDate={stock.endDate}
+          latestPrice={latestPrice}
         />
       )}
 

@@ -18,3 +18,9 @@ export type StockState = {
   startDate: string;
   endDate: string;
 };
+
+export type LatestPrice = {
+  close: number;
+  change: number;
+  changePct: number;
+};

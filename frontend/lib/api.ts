@@ -1,4 +1,4 @@
-import type { PriceResponse, StockBar } from "@/lib/types";
+import type { LatestPrice, PriceResponse, StockBar } from "@/lib/types";
 
 function normalizeApiUrl(value: string | undefined): string {
   if (!value) {
@@ -72,6 +72,49 @@ export async function fetchStockName(stockId: string): Promise<string> {
   }
   const match = stocksCache?.find((s) => s.stock_id === stockId);
   return match?.name ?? stockId;
+}
+
+export async function fetchLatestPrice(stockId: string): Promise<LatestPrice | null> {
+  const endDate = new Date().toISOString().slice(0, 10);
+  const startDate = new Date(Date.now() - 14 * 86400000).toISOString().slice(0, 10);
+  try {
+    const bars = await fetchPrices(stockId, startDate, endDate);
+    if (bars.length < 2) return null;
+    const last = bars[bars.length - 1];
+    const prev = bars[bars.length - 2];
+    const change = last.close - prev.close;
+    const changePct = (change / prev.close) * 100;
+    return { close: last.close, change, changePct };
+  } catch {
+    return null;
+  }
+}
+
+function normalizeInput(input: string): string {
+  return input
+    .replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xFEE0))
+    .trim()
+    .toUpperCase();
+}
+
+export async function resolveStockId(
+  input: string,
+): Promise<{ stockId: string; stockName: string }> {
+  const normalized = normalizeInput(input);
+  if (!stocksCache) {
+    try {
+      stocksCache = await apiFetch<{ stock_id: string; name: string }[]>("/api/stocks");
+    } catch {
+      stocksCache = null;
+    }
+  }
+  const byId = stocksCache?.find((s) => s.stock_id === normalized);
+  if (byId) return { stockId: byId.stock_id, stockName: byId.name };
+  const byName =
+    stocksCache?.find((s) => s.name === input.trim()) ??
+    stocksCache?.find((s) => s.name.includes(input.trim()));
+  if (byName) return { stockId: byName.stock_id, stockName: byName.name };
+  throw new Error("找不到此股票");
 }
 
 export { API_URL };

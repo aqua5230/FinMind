@@ -1,6 +1,6 @@
 # SESSION.md — FinMind 專案狀態
 
-更新時間：2026-04-05
+更新時間：2026-04-09
 
 ---
 
@@ -48,6 +48,7 @@ railway up
 | K 線圖空白 Bug | ✅ 已修復並部署 | 見下方根因分析 |
 | MACD/RSI n/a Bug | ✅ 已修復並部署 | 見下方根因分析 |
 | Deploy 最新改動 | ✅ 完成 | 2026-04-05，從根目錄 `railway up` |
+| 盤中即時 K 線更新 | ✅ 完成 | 2026-04-09，TWSE 免費 API + DataLoader.subscribeBar，60 秒 polling |
 | Header 大股價顯示 | ❌ 未做 | |
 | Hover-only OHLCV tooltip | ❌ 未做 | |
 | Morandi 指標線發光效果 | ❌ 未做 | |
@@ -112,14 +113,17 @@ railway up
 - 程式碼任務 → `codex exec --full-auto --skip-git-repo-check "..."`
 - 驗收 → Gemini 正確性 + Codex 範圍
 - 不 push，需使用者確認
-- **部署** → 從專案根目錄 `/Users/lollapalooza/Desktop/FinMind/` 執行 `railway up`
+- **部署** → 用 `./deploy.sh`（不要直接跑 `railway up`）
+  - 腳本會：① 擋掉未 commit 狀態 ② railway up ③ 驗證線上 bundle
+  - `railway up` 只上傳 git 已 commit 的檔案，未 commit = 舊版上線
+  - Healthcheck 通過 ≠ 新版上線，必須驗證 bundle 內容
 
 ---
 
 ## 下一步
 
 1. ✅ ~~Deploy 到 Railway（從根目錄 `railway up`）~~ — 已完成
-2. 移除 debug marker `console.log("FINMIND_DEPLOY_CHECK_v5")` — Codex 執行中
+2. ✅ ~~盤中即時 K 線更新~~ — 已完成（TWSE API + subscribeBar）
 3. Header 大股價顯示
 4. Hover-only OHLCV tooltip
 5. Morandi 指標線發光效果

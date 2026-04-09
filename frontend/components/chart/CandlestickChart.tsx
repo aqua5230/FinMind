@@ -2,6 +2,7 @@
 
 import { dispose, init, registerLocale, type KLineData, type Period as ChartPeriod } from "klinecharts";
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useRealtimeBar } from "@/hooks/useRealtimeBar";
 import { useStockData } from "@/hooks/useStockData";
 import type { StockBar } from "@/lib/types";
 
@@ -273,10 +274,12 @@ export function CandlestickChart({
   const chartRef = useRef<ChartInstance | null>(null);
   const periodRef = useRef<PeriodKey>("D");
   const chartDataRef = useRef<KLineData[]>([]);
+  const realtimeCallbackRef = useRef<((data: KLineData) => void) | null>(null);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
   const { period, chartType = initialChartType, maPeriods, activeIndicators } = useChartControls();
   const { data: bars, loading: isLoading, error } = useStockData(stockId, startDate, endDate);
   const nextData = useMemo(() => toKLineData(aggregateBars(sortBars(bars), period)), [bars, period]);
+  const realtimeBar = useRealtimeBar(stockId, !isLoading && period === "D");
 
   useEffect(() => {
     chartDataRef.current = nextData;
@@ -343,6 +346,12 @@ export function CandlestickChart({
     chart.setDataLoader({
       getBars: ({ callback }) => {
         callback(chartDataRef.current, { backward: false, forward: false });
+      },
+      subscribeBar: ({ callback }) => {
+        realtimeCallbackRef.current = callback;
+      },
+      unsubscribeBar: () => {
+        realtimeCallbackRef.current = null;
       },
     });
     chart.createIndicator("MA", true, { id: "candle_pane" });
@@ -424,7 +433,7 @@ export function CandlestickChart({
         const exists = chart.getIndicators({ paneId: paneOptions.id, name: indicator }).length > 0;
 
         if (isActive && !exists) {
-          chart.createIndicator(indicator, false, paneOptions);
+          chart.createIndicator(indicator, paneOptions.id === "candle_pane", paneOptions);
           chart.setPaneOptions({ id: paneOptions.id, height: paneOptions.height ?? 80 });
 
           const precision = INDICATOR_PRECISIONS[indicator];
@@ -454,6 +463,11 @@ export function CandlestickChart({
       replaceChartData(chart, chartDataRef.current);
     }
   }, [activeIndicators, isLoading, stockId]);
+
+  useEffect(() => {
+    if (!realtimeBar || !realtimeCallbackRef.current) return;
+    realtimeCallbackRef.current(realtimeBar);
+  }, [realtimeBar]);
 
   return (
     <div className="relative overflow-hidden bg-black" style={{ height: "calc(100vh - 160px)" }}>

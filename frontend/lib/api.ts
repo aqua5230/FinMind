@@ -118,3 +118,12 @@ export async function resolveStockId(
 }
 
 export { API_URL };
+
+export async function fetchRealtimeBar(stockId: string): Promise<StockBar | null> {
+  try {
+    const data = await apiFetch<StockBar>(`/api/realtime/${stockId}`);
+    return data;
+  } catch {
+    return null;
+  }
+}

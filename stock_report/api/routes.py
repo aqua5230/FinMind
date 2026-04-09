@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 _stocks_cache: TTLCache[str, list[dict]] = TTLCache(maxsize=1, ttl=3600)
 _price_cache: TTLCache[str, PriceResponse] = TTLCache(maxsize=200, ttl=600)
+_realtime_cache: TTLCache[str, dict] = TTLCache(maxsize=200, ttl=30)
 
 
 class ReportRequest(BaseModel):
@@ -154,6 +155,52 @@ def get_price(
     response = PriceResponse(stock_id=stock_id, prices=prices)
     _price_cache[cache_key] = response
     return response
+
+
+@router.get("/realtime/{stock_id}")
+def get_realtime_price(stock_id: str) -> dict:
+    cached = _realtime_cache.get(stock_id)
+    if cached is not None:
+        return cached
+
+    import requests as req
+    result = None
+    for market in ("tse", "otc"):
+        url = f"https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch={market}_{stock_id}.tw&json=1&delay=0"
+        try:
+            resp = req.get(url, timeout=5)
+            data = resp.json()
+            arr = data.get("msgArray", [])
+            if not arr:
+                continue
+            item = arr[0]
+            z = item.get("z", "-")
+            o = item.get("o", "-")
+            h = item.get("h", "-")
+            l = item.get("l", "-")
+            v = item.get("v", "-")
+            d = item.get("d", "-")
+            if "-" in (z, o, h, l, v, d):
+                continue
+            date_str = f"{d[:4]}-{d[4:6]}-{d[6:]}"
+            bar = {
+                "stock_id": stock_id,
+                "date": date_str,
+                "open": float(o),
+                "high": float(h),
+                "low": float(l),
+                "close": float(z),
+                "volume": int(float(v) * 1000),
+            }
+            _realtime_cache[stock_id] = bar
+            result = bar
+            break
+        except Exception:
+            continue
+
+    if result is None:
+        raise HTTPException(status_code=404, detail="Realtime price not available")
+    return result
 
 
 def _generate_report(

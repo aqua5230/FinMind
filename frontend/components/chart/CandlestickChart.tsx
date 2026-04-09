@@ -80,7 +80,7 @@ function getCandleStyles(chartType: ChartType) {
         },
       },
       tooltip: {
-        showRule: "follow_cross" as const,
+        showRule: "always" as const,
         title: {
           show: false,
         },

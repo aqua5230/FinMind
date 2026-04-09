@@ -64,20 +64,23 @@ function ChartControls() {
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-6 border-b border-[#3A3A3C] bg-[#1C1C1E] px-6 py-3">
-      <label className="flex items-center gap-2 text-xs text-[#8E8E93]">
-        週期
-        <select
-          value={period}
-          onChange={(event) => setPeriod(event.currentTarget.value as "D" | "W" | "M")}
-          className="h-8 rounded-md border border-[#3A3A3C] bg-[#2C2C2E] px-3 text-xs text-white outline-none transition focus:border-[#0A84FF]"
-          aria-label="Select chart period"
-        >
-          <option value="D">日線</option>
-          <option value="W">週線</option>
-          <option value="M">月線</option>
-        </select>
-      </label>
+    <div className="flex items-center gap-3 border-b border-[#3A3A3C] bg-[#1C1C1E] px-3 py-2 overflow-x-auto">
+      <div className="flex gap-1">
+        {([
+          { key: "D", label: "日" },
+          { key: "W", label: "週" },
+          { key: "M", label: "月" },
+        ] as const).map(({ key, label }) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setPeriod(key)}
+            className={getChartTypeButtonClass(period === key)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
 
       <div className="mx-1 h-4 w-px bg-[#3A3A3C]" />
 

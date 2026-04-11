@@ -12,7 +12,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel, ConfigDict
 
 from stock_report.api.finmind import FinMindClient
-from stock_report.data.tw_stocks import TW_SCAN_STOCK_IDS
+from stock_report.data.tw_stocks import TW_STOCK_IDS
 
 
 BOLL_PERIOD = 20
@@ -116,7 +116,7 @@ async def scan_stocks() -> ScanResponse:
 
         tasks = [
             _scan_one_stock(stock_id, stock_names.get(stock_id, stock_id), start_date, end_date, semaphore)
-            for stock_id in TW_SCAN_STOCK_IDS
+            for stock_id in TW_STOCK_IDS
         ]
         scanned = await asyncio.gather(*tasks)
         results = [item for item in scanned if item is not None]
@@ -124,7 +124,7 @@ async def scan_stocks() -> ScanResponse:
 
         response = ScanResponse(
             scanned_at=datetime.now().replace(microsecond=0).isoformat(),
-            total_scanned=len(TW_SCAN_STOCK_IDS),
+            total_scanned=len(TW_STOCK_IDS),
             results=results,
         )
         _scan_cache["scan"] = response
@@ -178,7 +178,7 @@ def _get_stock_names() -> dict[str, str]:
     names = {
         str(row["stock_id"]): str(row["stock_name"])
         for row in rows
-        if str(row.get("stock_id", "")) in TW_SCAN_STOCK_IDS and row.get("stock_name")
+        if str(row.get("stock_id", "")) in TW_STOCK_IDS and row.get("stock_name")
     }
     _stock_name_cache["stock_names"] = names
     return names

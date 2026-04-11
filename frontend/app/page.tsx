@@ -34,6 +34,7 @@ export default function Home() {
   const [isScanPanelOpen, setIsScanPanelOpen] = useState(false);
   const [scanResults, setScanResults] = useState<ScanResult[]>([]);
   const [chartSessionKey, setChartSessionKey] = useState(0);
+  const [searchValue, setSearchValue] = useState("");
 
   const loadStock = useCallback(
     async (
@@ -59,6 +60,7 @@ export default function Home() {
     try {
       const { stockId, stockName } = await resolveStockId(value);
       await loadStock(stockId, stockName);
+      setSearchValue("");
       setError("");
     } catch (err) {
       setLatestPrice(null);
@@ -85,6 +87,7 @@ export default function Home() {
   const handleSelectScanResult = useCallback(async (result: ScanResult) => {
     try {
       await loadStock(result.stock_id, result.stock_name, SCAN_INDICATORS, result.signal_date);
+      setSearchValue(result.stock_id);
       setError("");
     } catch (err) {
       setLatestPrice(null);
@@ -94,7 +97,13 @@ export default function Home() {
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-black">
-      <AppHeader onSearch={handleSearch} onScan={handleScan} isScanning={isScanning} />
+      <AppHeader
+        onSearch={handleSearch}
+        onScan={handleScan}
+        isScanning={isScanning}
+        searchValue={searchValue}
+        onSearchChange={setSearchValue}
+      />
 
       {isScanPanelOpen && (
         <ScanPanel

@@ -89,7 +89,7 @@ export async function fetchStockName(stockId: string): Promise<string> {
 
 export async function fetchLatestPrice(stockId: string): Promise<LatestPrice | null> {
   const endDate = new Date().toISOString().slice(0, 10);
-  const startDate = new Date(Date.now() - 14 * 86400000).toISOString().slice(0, 10);
+  const startDate = new Date(Date.now() - 5 * 86400000).toISOString().slice(0, 10);
   try {
     const bars = await fetchPrices(stockId, startDate, endDate);
     if (bars.length < 2) return null;
@@ -129,6 +129,7 @@ export async function resolveStockId(
   if (byId) return { stockId: byId.stock_id, stockName: byId.name };
   const byName =
     stocksCache?.find((s) => s.name === input.trim()) ??
+    stocksCache?.find((s) => s.name.startsWith(input.trim())) ??
     stocksCache?.find((s) => s.name.includes(input.trim()));
   if (byName) return { stockId: byName.stock_id, stockName: byName.name };
   throw new Error("找不到此股票");

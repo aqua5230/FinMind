@@ -156,7 +156,6 @@ def get_price(
         if price is not None:
             prices.append(price)
 
-    prices = [p for p in prices if start_date <= p.date <= end_date]
     prices.sort(key=lambda item: item.date)
     response = PriceResponse(stock_id=stock_id, prices=prices)
     _price_cache[cache_key] = response

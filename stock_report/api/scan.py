@@ -82,17 +82,9 @@ def calculate_signals(prices: Sequence[PriceBar]) -> list[date]:
         current_histogram = macd[index]
 
         if (
-            previous_lower is not None
-            and current_lower is not None
-            and current_rsi is not None
-            and previous_histogram is not None
-            and current_histogram is not None
-            and bars[index - 1].close < previous_lower
-            and bars[index].close > current_lower
+            current_rsi is not None
             and current_rsi < 30
             and bars[index].close <= peak_20 * 0.8
-            and current_histogram > previous_histogram
-            and previous_histogram < 0
         ):
             signals.append(bars[index].date)
 

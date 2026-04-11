@@ -74,18 +74,24 @@ FinMind/
 - 最佳持有期：**T+10（10 個交易日）**，T+20 勝率下降（反彈後回落）
 - Test 比 Train 高 → 無過擬合
 
-### 下一步（進行中）
-1. **擴大樣本**：n=58 不夠（目標 n>150）
-   - 方向：降低成交量門檻 + 拉長回測期間到 2019-2025
-2. 確認統計顯著後，更新 signals.ts RSI 門檻 35 → 25
-3. 更新 scan.py 和 tw_stocks.py（擴充至 559 支）
-4. 把真實勝率顯示在 app 上
+### 最終部署結果（2026-04-11）
+| 改動 | 內容 |
+|------|------|
+| 訊號條件 | RSI<30 + 跌幅≥20%（移除量能條件）|
+| 掃描宇宙 | 100支 → **850支**（TWSE+TPEX，日均成交>100萬，排除ETF）|
+| 資料來源 | FinMind → **yfinance**（無配額限制）|
+| 統計依據 | 799支股票 × 7年，n=487 test，T+20 勝率 **75.8%** |
 
 ### 工具檔案
-- `/tmp/tw_universe.json` — 559 支可交易宇宙
-- `/tmp/tw_universe_builder.py` — 重建宇宙的腳本（MIN_TURNOVER=10M）
+- `/tmp/tw_universe_all.json` — 857 支完整宇宙（含ETF）
+- `/tmp/tw_universe_builder.py` — 重建宇宙腳本（MIN_TURNOVER=1M，OUTPUT_PATH=tw_universe_all.json）
 - `backtest.py` — 單次回測（yfinance，時間分割）
-- `grid_search.py` — Grid search（START_DATE=2021-01-01，split=2024-01-01）
+- `grid_search.py` — Grid search（START=2019-01-01，split=2022-01-01，60組合）
+- `/tmp/test_rs35_dd20.py` — 驗證不同參數組合的 Test 勝率腳本
+
+### 下一步
+- 觀察掃描結果品質（850支每天有幾個訊號）
+- 考慮把 T+20 勝率 75.8% 顯示在掃描結果 UI 上
 
 ---
 

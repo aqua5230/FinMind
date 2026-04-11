@@ -39,8 +39,7 @@ export function StockInfoBar({ stockId, stockName, latestPrice }: Props) {
                 {latestPrice.close.toLocaleString("zh-TW", {
                   minimumFractionDigits: 2,
                   maximumFractionDigits: 2,
-                })}{" "}
-                TWD
+                })}
               </span>
               <span className="text-xs" style={{ color }}>
                 {latestPrice.change >= 0 ? "+" : ""}

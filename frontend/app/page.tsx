@@ -12,9 +12,7 @@ function formatDate(date: Date): string {
 }
 
 function getStartDate(): string {
-  const date = new Date();
-  date.setFullYear(date.getFullYear() - 5);
-  return formatDate(date);
+  return "2000-01-01";
 }
 
 function getEndDate(): string {

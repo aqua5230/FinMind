@@ -64,7 +64,7 @@ function ChartControls() {
   }
 
   return (
-    <div className="flex items-center gap-3 border-b border-[#3A3A3C] bg-[#1C1C1E] px-3 py-2 overflow-x-auto">
+    <div className="flex items-center gap-4 border-b border-[#3A3A3C] bg-[#1C1C1E] px-4 py-2 overflow-x-auto">
       <div className="flex gap-1">
         {([
           { key: "D", label: "日" },
@@ -82,7 +82,7 @@ function ChartControls() {
         ))}
       </div>
 
-      <div className="mx-1 h-4 w-px bg-[#3A3A3C]" />
+      <div className="mx-1 h-3.5 w-px bg-[#636366]" />
 
       <div className="flex gap-1">
         {([
@@ -100,7 +100,7 @@ function ChartControls() {
         ))}
       </div>
 
-      <div className="mx-1 h-4 w-px bg-[#3A3A3C]" />
+      <div className="mx-1 h-3.5 w-px bg-[#636366]" />
 
       <div className="flex flex-wrap items-center gap-1">
         {INDICATOR_TOGGLES.map((indicator) => (
@@ -115,7 +115,7 @@ function ChartControls() {
         ))}
       </div>
 
-      <div className="mx-1 h-4 w-px bg-[#3A3A3C]" />
+      <div className="mx-1 h-3.5 w-px bg-[#636366]" />
 
       <div className="flex flex-wrap items-center gap-1.5">
         {maPeriods.map((value) => (

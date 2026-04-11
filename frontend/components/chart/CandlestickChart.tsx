@@ -1,8 +1,18 @@
 "use client";
 
-import { dispose, init, registerLocale, type KLineData, type Period as ChartPeriod } from "klinecharts";
+import {
+  dispose,
+  getSupportedOverlays,
+  init,
+  registerLocale,
+  registerOverlay,
+  type KLineData,
+  type OverlayTemplate,
+  type Period as ChartPeriod,
+} from "klinecharts";
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useRealtimeBar } from "@/hooks/useRealtimeBar";
+import { calculateTradeSignals, type TradeSignalType } from "@/lib/signals";
 import { useStockData } from "@/hooks/useStockData";
 import type { StockBar } from "@/lib/types";
 
@@ -48,6 +58,15 @@ const INDICATOR_PRECISIONS: Partial<Record<IndicatorKey, number>> = {
   MACD: 2,
   RSI: 2,
 };
+const SIGNAL_GROUP_ID = "signals";
+const SIGNAL_OVERLAY_NAME = "tradeSignalMarker";
+const SIGNAL_REQUIRED_INDICATORS: IndicatorKey[] = ["BOLL", "MACD", "RSI"];
+const SIGNAL_COLORS: Record<TradeSignalType, string> = {
+  long: "#33B1FF",
+  short: "#E540FF",
+};
+
+let isSignalOverlayRegistered = false;
 
 const PERIOD_MAP: Record<PeriodKey, ChartPeriod> = {
   D: { type: "day", span: 1 },
@@ -87,6 +106,61 @@ function getCandleStyles(chartType: ChartType) {
       },
     },
   };
+}
+
+function registerSignalOverlay() {
+  if (isSignalOverlayRegistered || getSupportedOverlays().includes(SIGNAL_OVERLAY_NAME)) {
+    isSignalOverlayRegistered = true;
+    return;
+  }
+
+  const template: OverlayTemplate<{ type: TradeSignalType }> = {
+    name: SIGNAL_OVERLAY_NAME,
+    totalStep: 1,
+    lock: true,
+    needDefaultPointFigure: false,
+    needDefaultXAxisFigure: false,
+    needDefaultYAxisFigure: false,
+    createPointFigures: ({ coordinates, overlay }) => {
+      const coordinate = coordinates[0];
+      if (!coordinate) {
+        return [];
+      }
+
+      const type = overlay.extendData?.type ?? "long";
+      const color = SIGNAL_COLORS[type];
+      const size = 10;
+      const points =
+        type === "long"
+          ? [
+              { x: coordinate.x, y: coordinate.y - size },
+              { x: coordinate.x - size, y: coordinate.y + size },
+              { x: coordinate.x + size, y: coordinate.y + size },
+            ]
+          : [
+              { x: coordinate.x, y: coordinate.y + size },
+              { x: coordinate.x - size, y: coordinate.y - size },
+              { x: coordinate.x + size, y: coordinate.y - size },
+            ];
+
+      return [{
+        type: "polygon",
+        attrs: { coordinates: points },
+        styles: {
+          style: "fill",
+          color,
+          borderColor: color,
+          borderSize: 1,
+          borderStyle: "solid",
+          borderDashedValue: [],
+        },
+        ignoreEvent: true,
+      }];
+    },
+  };
+
+  registerOverlay(template);
+  isSignalOverlayRegistered = true;
 }
 
 registerLocale(CHART_LOCALE, {
@@ -274,6 +348,34 @@ function getIndicatorStyles(indicator: IndicatorKey) {
   }
 
   return undefined;
+}
+
+function shouldShowSignals(activeIndicators: IndicatorKey[]) {
+  const activeIndicatorSet = new Set(activeIndicators);
+  return SIGNAL_REQUIRED_INDICATORS.every((indicator) => activeIndicatorSet.has(indicator));
+}
+
+function syncSignalOverlays(chart: ChartInstance, data: KLineData[], activeIndicators: IndicatorKey[]) {
+  chart.removeOverlay({ groupId: SIGNAL_GROUP_ID });
+
+  if (!shouldShowSignals(activeIndicators) || data.length === 0) {
+    return;
+  }
+
+  registerSignalOverlay();
+
+  const signals = calculateTradeSignals(data);
+  const overlays = signals.map((signal) => ({
+    name: SIGNAL_OVERLAY_NAME,
+    groupId: SIGNAL_GROUP_ID,
+    paneId: "candle_pane",
+    points: [{ timestamp: signal.timestamp, value: signal.value }],
+    extendData: { type: signal.type },
+  }));
+
+  if (overlays.length > 0) {
+    chart.createOverlay(overlays);
+  }
 }
 
 export function normalizeMaPeriod(value: string): number | null {
@@ -490,6 +592,20 @@ export function CandlestickChart({
       replaceChartData(chart, chartDataRef.current);
     }
   }, [activeIndicators, isLoading, stockId]);
+
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart) {
+      return;
+    }
+
+    if (isLoading) {
+      chart.removeOverlay({ groupId: SIGNAL_GROUP_ID });
+      return;
+    }
+
+    syncSignalOverlays(chart, nextData, activeIndicators);
+  }, [activeIndicators, isLoading, nextData, stockId]);
 
   useEffect(() => {
     if (!realtimeBar || !realtimeCallbackRef.current) return;

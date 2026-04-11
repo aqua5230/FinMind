@@ -10,7 +10,7 @@ import {
 } from "@/components/chart/CandlestickChart";
 import { PillButton } from "@/components/ui/PillButton";
 
-type Props = { stockId: string; startDate: string; endDate: string };
+type Props = { stockId: string; startDate: string; endDate: string; signalDate?: string };
 const TEXT_TOGGLE_BUTTON_CLASS = "rounded-md px-3 py-1 text-xs transition";
 const INDICATOR_TOGGLES: IndicatorKey[] = ["BOLL", "MACD", "RSI"];
 
@@ -154,19 +154,29 @@ function ChartControls() {
   );
 }
 
-function KLinePanelContent({ stockId, startDate, endDate }: Props) {
+function KLinePanelContent({ stockId, startDate, endDate, signalDate }: Props) {
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-black">
       <ChartControls />
-      <CandlestickChart stockId={stockId} startDate={startDate} endDate={endDate} />
+      <CandlestickChart
+        stockId={stockId}
+        startDate={startDate}
+        endDate={endDate}
+        signalDate={signalDate}
+      />
     </div>
   );
 }
 
-export function KLinePanel({ stockId, startDate, endDate }: Props) {
+export function KLinePanel({ stockId, startDate, endDate, signalDate }: Props) {
   return (
     <ChartControlsProvider>
-      <KLinePanelContent stockId={stockId} startDate={startDate} endDate={endDate} />
+      <KLinePanelContent
+        stockId={stockId}
+        startDate={startDate}
+        endDate={endDate}
+        signalDate={signalDate}
+      />
     </ChartControlsProvider>
   );
 }

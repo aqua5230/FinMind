@@ -17,6 +17,7 @@ export type StockState = {
   stockName: string;
   startDate: string;
   endDate: string;
+  signalDate?: string;
 };
 
 export type LatestPrice = {

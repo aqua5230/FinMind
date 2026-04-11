@@ -36,11 +36,16 @@ export default function Home() {
   const [chartSessionKey, setChartSessionKey] = useState(0);
 
   const loadStock = useCallback(
-    async (stockId: string, stockName: string, activeIndicators: IndicatorKey[] = []) => {
+    async (
+      stockId: string,
+      stockName: string,
+      activeIndicators: IndicatorKey[] = [],
+      signalDate?: string,
+    ) => {
       const lp = await fetchLatestPrice(stockId);
       setChartInitialActiveIndicators(activeIndicators);
       setLatestPrice(lp);
-      setStock({ stockId, stockName, startDate: getStartDate(), endDate: getEndDate() });
+      setStock({ stockId, stockName, startDate: getStartDate(), endDate: getEndDate(), signalDate });
       setChartSessionKey((current) => current + 1);
     },
     [],
@@ -79,7 +84,7 @@ export default function Home() {
 
   const handleSelectScanResult = useCallback(async (result: ScanResult) => {
     try {
-      await loadStock(result.stock_id, result.stock_name, SCAN_INDICATORS);
+      await loadStock(result.stock_id, result.stock_name, SCAN_INDICATORS, result.signal_date);
       setError("");
     } catch (err) {
       setLatestPrice(null);
@@ -119,6 +124,7 @@ export default function Home() {
             stockId={stock.stockId}
             startDate={stock.startDate}
             endDate={stock.endDate}
+            signalDate={stock.signalDate}
           />
         ) : (
           <div className="flex h-full items-center justify-center">

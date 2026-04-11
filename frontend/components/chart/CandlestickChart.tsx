@@ -20,6 +20,7 @@ type Props = {
   stockId: string;
   startDate: string;
   endDate: string;
+  signalDate?: string;
   chartType?: ChartType;
 };
 
@@ -362,14 +363,47 @@ function shouldShowSignals(activeIndicators: IndicatorKey[]) {
   return SIGNAL_REQUIRED_INDICATORS.every((indicator) => activeIndicatorSet.has(indicator));
 }
 
-function syncSignalOverlays(chart: ChartInstance, data: KLineData[], activeIndicators: IndicatorKey[]) {
+function syncSignalOverlays(
+  chart: ChartInstance,
+  data: KLineData[],
+  activeIndicators: IndicatorKey[],
+  signalDate?: string,
+) {
   chart.removeOverlay({ groupId: SIGNAL_GROUP_ID });
 
-  if (!shouldShowSignals(activeIndicators) || data.length === 0) {
+  if (data.length === 0) {
     return;
   }
 
   registerSignalOverlay();
+
+  if (signalDate) {
+    const targetTimestamp = toUtcTimestamp(signalDate);
+    const nearestBar = data.reduce<KLineData | null>((nearest, bar) => {
+      if (!nearest) {
+        return bar;
+      }
+
+      return Math.abs(bar.timestamp - targetTimestamp) < Math.abs(nearest.timestamp - targetTimestamp)
+        ? bar
+        : nearest;
+    }, null);
+
+    if (nearestBar) {
+      chart.createOverlay({
+        name: SIGNAL_OVERLAY_NAME,
+        groupId: SIGNAL_GROUP_ID,
+        paneId: "candle_pane",
+        points: [{ timestamp: nearestBar.timestamp, value: nearestBar.low * 0.995 }],
+        extendData: { type: "long" },
+      });
+    }
+    return;
+  }
+
+  if (!shouldShowSignals(activeIndicators)) {
+    return;
+  }
 
   const signals = calculateTradeSignals(data);
   const overlays = signals.map((signal) => ({
@@ -397,6 +431,7 @@ export function CandlestickChart({
   stockId,
   startDate,
   endDate,
+  signalDate,
   chartType: initialChartType = "candle_solid",
 }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -611,8 +646,8 @@ export function CandlestickChart({
       return;
     }
 
-    syncSignalOverlays(chart, nextData, activeIndicators);
-  }, [activeIndicators, isLoading, nextData, stockId]);
+    syncSignalOverlays(chart, nextData, activeIndicators, signalDate);
+  }, [activeIndicators, isLoading, nextData, signalDate, stockId]);
 
   useEffect(() => {
     if (!realtimeBar || !realtimeCallbackRef.current) return;

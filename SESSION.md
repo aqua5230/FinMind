@@ -55,6 +55,8 @@ FinMind/
 | 玉山交易 SDK | ✅ 安裝完成 | esun_trade 2.2.0，模擬下單測試通過 |
 | 玉山行情 SDK | ✅ 安裝完成 | esun_marketdata 2.2.0 |
 | 玉山模擬下單 | ✅ 測試通過 | ret_code 000000，待申請正式金鑰 |
+| StockInfoBar 視覺強化 | ✅ 完成 + 部署 | 現價 text-4xl，漲跌幅改色塊 badge |
+| RSI 算法修正 | ✅ 完成 + 部署 | 改 Wilder's EMA，與後端 scan.py 同步，訊號箭頭可正確顯示 |
 
 ---
 

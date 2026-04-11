@@ -1,5 +1,18 @@
 import type { LatestPrice, PriceResponse, StockBar } from "@/lib/types";
 
+export type ScanResult = {
+  stock_id: string;
+  stock_name: string;
+  signal_date: string;
+  days_ago: number;
+};
+
+export type ScanResponse = {
+  scanned_at: string;
+  total_scanned: number;
+  results: ScanResult[];
+};
+
 function normalizeApiUrl(value: string | undefined): string {
   if (!value) {
     return "";
@@ -88,6 +101,10 @@ export async function fetchLatestPrice(stockId: string): Promise<LatestPrice | n
   } catch {
     return null;
   }
+}
+
+export async function fetchScan(): Promise<ScanResponse> {
+  return apiFetch<ScanResponse>("/api/scan");
 }
 
 function normalizeInput(input: string): string {

@@ -67,6 +67,11 @@ const SIGNAL_COLORS: Record<TradeSignalType, string> = {
 };
 
 let isSignalOverlayRegistered = false;
+let chartInitialActiveIndicators: IndicatorKey[] = DEFAULT_ACTIVE_INDICATORS;
+
+export function setChartInitialActiveIndicators(indicators: IndicatorKey[]) {
+  chartInitialActiveIndicators = indicators;
+}
 
 const PERIOD_MAP: Record<PeriodKey, ChartPeriod> = {
   D: { type: "day", span: 1 },
@@ -188,7 +193,9 @@ export function ChartControlsProvider({ children }: { children: React.ReactNode 
   const [chartType, setChartType] = useState<ChartType>("candle_solid");
   const [maPeriods, setMaPeriods] = useState<number[]>(DEFAULT_MA_PERIODS);
   const [maInput, setMaInput] = useState("");
-  const [activeIndicators, setActiveIndicators] = useState<IndicatorKey[]>(DEFAULT_ACTIVE_INDICATORS);
+  const [activeIndicators, setActiveIndicators] = useState<IndicatorKey[]>(
+    () => [...chartInitialActiveIndicators],
+  );
 
   return (
     <ChartControlsContext.Provider

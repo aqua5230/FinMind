@@ -40,17 +40,21 @@ FinMind/
 
 ---
 
-## 當前階段：訊號系統 + 掃描器
+## 當前階段：玉山 API 整合 + 掃描器優化
 
 | 項目 | 狀態 | 備注 |
 |------|------|------|
 | SearchInput 放大鏡 icon | ✅ 完成 | |
 | ChartControls 分隔線優化 | ✅ 完成 | 顏色 #636366 |
-| 訊號箭頭系統 | ✅ 完成 | 藍↑做多、洋紅↓做空 |
-| 訊號顏色 | ✅ 完成 | #33B1FF / #E540FF |
-| 回測最佳化 | ✅ 完成 | RSI<35 + 量>10日均量×1.2 |
-| 後端 /api/scan | ✅ 完成 + 部署 | 掃描100支，TTL快取10分鐘 |
-| 前端掃描器 UI | ✅ 完成 + 部署 | 掃描按鈕 + 結果清單 |
+| 訊號箭頭系統 | ✅ 完成 | 藍↑做多，條件同步 |
+| 回測最佳化 | ✅ 完成 | RSI<30 + 跌幅≥20%，n=487，T+10 75.8% |
+| 後端 /api/scan | ✅ 完成 + 部署 | 1075支（證交所動態），TTL快取10分鐘 |
+| 前端掃描器 UI | ✅ 完成 + 部署 | 點股票後面板保留，可直接切換 |
+| signals.ts 條件同步 | ✅ 完成 + 部署 | RSI<30 + 跌幅≥20%，移除 BOLL/MACD/short |
+| 股票清單動態化 | ✅ 完成 + 部署 | 證交所 openapi，850→1075支，TTL 1天 |
+| 玉山交易 SDK | ✅ 安裝完成 | esun_trade 2.2.0，模擬下單測試通過 |
+| 玉山行情 SDK | ✅ 安裝完成 | esun_marketdata 2.2.0 |
+| 玉山模擬下單 | ✅ 測試通過 | ret_code 000000，待申請正式金鑰 |
 
 ---
 
@@ -90,8 +94,10 @@ FinMind/
 - `/tmp/test_rs35_dd20.py` — 驗證不同參數組合的 Test 勝率腳本
 
 ### 下一步
-- 觀察掃描結果品質（850支每天有幾個訊號）
-- 考慮把 T+20 勝率 75.8% 顯示在掃描結果 UI 上
+- 申請玉山正式 API 金鑰
+- 整合掃描器 → 自動下單流程
+- 建立訊號記錄系統（進場日、股票、價格 → T+10 追蹤）
+- 考慮把 T+10 勝率 75.8% 顯示在掃描結果 UI 上
 
 ---
 
@@ -122,7 +128,8 @@ FinMind/
 
 ## 核心檔案（下個 session 優先讀）
 
-1. `frontend/lib/signals.ts` — 訊號條件
-2. `stock_report/api/scan.py` — 掃描邏輯
-3. `stock_report/data/tw_stocks.py` — 股票清單（待更新）
-4. `backtest.py` — 回測腳本（需重跑更大樣本）
+1. `frontend/lib/signals.ts` — 訊號條件（RSI<30 + 跌幅≥20%）
+2. `stock_report/api/scan.py` — 掃描邏輯（同上條件）
+3. `stock_report/data/tw_stocks.py` — 動態抓取證交所股票清單
+4. `trading/test_order.py` — 玉山模擬下單測試
+5. `trading/config.simulation.ini` — 玉山模擬環境設定

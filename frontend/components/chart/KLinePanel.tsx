@@ -121,7 +121,7 @@ function ChartControls() {
         {maPeriods.map((value) => (
           <span
             key={value}
-            className="inline-flex items-center gap-1 rounded-md bg-[#2C2C2E] px-2 py-0.5 text-xs font-medium text-[#8E8E93]"
+            className="inline-flex items-center gap-1 rounded-md bg-[#2C2C2E] px-2 py-0.5 text-xs font-medium text-white"
           >
             {`MA${value}`}
             <button

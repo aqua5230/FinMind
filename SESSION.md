@@ -57,6 +57,26 @@ FinMind/
 | 玉山模擬下單 | ✅ 測試通過 | ret_code 000000，待申請正式金鑰 |
 | StockInfoBar 視覺強化 | ✅ 完成 + 部署 | 現價 text-4xl，漲跌幅改色塊 badge |
 | RSI 算法修正 | ✅ 完成 + 部署 | 改 Wilder's EMA，與後端 scan.py 同步，訊號箭頭可正確顯示 |
+| 全面 bug 修復（2026-04-12）| ✅ 完成 + 部署 | 見下方清單 |
+
+### 2026-04-12 修復清單（已全部部署）
+| 項目 | 說明 |
+|------|------|
+| tw_stocks.py `verify=False` | 移除 SSL 漏洞 |
+| scan.py / signals.ts 死碼 | 移除 BOLL/MACD/Volume 未使用的計算函數與常數 |
+| CandlestickChart.tsx 訊號條件 | SIGNAL_REQUIRED_INDICATORS 改為只需 `["RSI"]` |
+| .gitignore | 加入 `trading/config*.ini` 和 `*.p12` |
+| trading 路徑 bug | test_order.py / reset_password.py 改用 `Path(__file__).parent` |
+| requirements.txt | 補上 numpy / pandas / esun_trade / esun_marketdata |
+| fetchLatestPrice | 查詢區間 14 天縮短為 5 天 |
+| resolveStockId 搜尋 | 加入 startsWith 優先層（完全相符 > 開頭 > 包含）|
+| AppHeader 狀態提升 | searchValue 提升至 page.tsx，搜尋後清空，選掃描結果後填入代號 |
+| routes.py 冗餘過濾 | 移除 get_price 的多餘日期二次過濾 |
+
+### 待處理（下個 session）
+| 項目 | 優先度 | 說明 |
+|------|--------|------|
+| 資料源統一 | MED | scan.py 用 yfinance、routes.py 用 FinMind，兩套不一致。需評估 FinMind 配額是否足夠支撐 1700+ 支掃描，或考慮本地快取資料庫 |
 
 ---
 
@@ -70,17 +90,7 @@ FinMind/
   - Test：2024-2025（2 年）
 - Grid search 參數（64 組合）：rsi / vol / twii / dd 四個維度
 
-### 最新回測結果（時間分割，n=58 test）
-| 最佳參數 | Train T+10 | **Test T+10** | Test T+20 |
-|---------|-----------|-------------|---------|
-| RSI<25，無其他過濾 | 72.9% (n=129) | **86.2%** (n=58) | 56.9% |
-
-**關鍵結論：**
-- RSI 門檻應為 **< 25**（不是原本的 < 35）
-- 最佳持有期：**T+10（10 個交易日）**，T+20 勝率下降（反彈後回落）
-- Test 比 Train 高 → 無過擬合
-
-### 最終部署結果（2026-04-11）
+### 回測結果（2026-04-11）
 | 改動 | 內容 |
 |------|------|
 | 訊號條件 | RSI<30 + 跌幅≥20%（移除量能條件）|

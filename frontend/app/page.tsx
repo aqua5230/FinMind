@@ -7,10 +7,18 @@ import { StockInfoBar } from "@/components/layout/StockInfoBar";
 import { fetchLatestPrice, resolveStockId } from "@/lib/api";
 import type { LatestPrice, StockState } from "@/lib/types";
 
-const START_DATE = "2000-01-01";
+function formatDate(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+function getStartDate(): string {
+  const date = new Date();
+  date.setFullYear(date.getFullYear() - 5);
+  return formatDate(date);
+}
 
 function getEndDate(): string {
-  return new Date().toISOString().slice(0, 10);
+  return formatDate(new Date());
 }
 
 export default function Home() {
@@ -28,7 +36,7 @@ export default function Home() {
       const lp = await fetchLatestPrice(id);
       setError("");
       setLatestPrice(lp);
-      setStock({ stockId: id, stockName, startDate: START_DATE, endDate: getEndDate() });
+      setStock({ stockId: id, stockName, startDate: getStartDate(), endDate: getEndDate() });
     } catch (err) {
       setLatestPrice(null);
       setError(err instanceof Error ? err.message : "查詢失敗，請稍後再試");

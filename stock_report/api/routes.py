@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 from datetime import date
 
+import requests
 from cachetools import TTLCache
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, model_validator
@@ -22,13 +23,14 @@ logger = logging.getLogger(__name__)
 _stocks_cache: TTLCache[str, list[dict]] = TTLCache(maxsize=1, ttl=3600)
 _price_cache: TTLCache[str, PriceResponse] = TTLCache(maxsize=200, ttl=600)
 _realtime_cache: TTLCache[str, dict] = TTLCache(maxsize=200, ttl=30)
+_market_cache: TTLCache[str, str] = TTLCache(maxsize=200, ttl=86400)
 
 
 class ReportRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     stock_id: str
-    year: int = 2024
+    year: int = date.today().year
     start_year: int | None = None
     end_year: int | None = None
 
@@ -111,7 +113,7 @@ def create_report(
 @router.get("/report/{stock_id}", response_model=StockReport)
 def get_report(
     stock_id: str,
-    year: int = Query(default=2024),
+    year: int = Query(default=date.today().year),
     start_year: int | None = Query(default=None),
     end_year: int | None = Query(default=None),
     _: None = Depends(verify_api_key),
@@ -163,12 +165,13 @@ def get_realtime_price(stock_id: str) -> dict:
     if cached is not None:
         return cached
 
-    import requests as req
+    cached_market = _market_cache.get(stock_id)
+    markets = (cached_market,) if cached_market is not None else ("tse", "otc")
     result = None
-    for market in ("tse", "otc"):
+    for market in markets:
         url = f"https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch={market}_{stock_id}.tw&json=1&delay=0"
         try:
-            resp = req.get(url, timeout=5)
+            resp = requests.get(url, timeout=5)
             data = resp.json()
             arr = data.get("msgArray", [])
             if not arr:
@@ -193,6 +196,7 @@ def get_realtime_price(stock_id: str) -> dict:
                 "volume": int(float(v) * 1000),
             }
             _realtime_cache[stock_id] = bar
+            _market_cache[stock_id] = market
             result = bar
             break
         except Exception:

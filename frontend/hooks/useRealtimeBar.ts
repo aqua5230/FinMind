@@ -34,7 +34,6 @@ export function useRealtimeBar(stockId: string, enabled: boolean): KLineData | n
         close: raw.close,
         volume: raw.volume,
       };
-      console.log("realtime update:", raw.close);
       setBar(kbar);
     }
 

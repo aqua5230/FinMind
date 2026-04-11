@@ -80,7 +80,7 @@ function getCandleStyles(chartType: ChartType) {
         },
       },
       tooltip: {
-        showRule: "always" as const,
+        showRule: "follow_cross" as const,
         title: {
           show: false,
         },
@@ -254,6 +254,26 @@ function getMaStyles(periods: number[]) {
       smooth: false,
     })),
   };
+}
+
+function getIndicatorStyles(indicator: IndicatorKey) {
+  if (indicator === "MACD") {
+    return {
+      lines: [
+        { color: "#C4956A", size: 1.5 },
+        { color: "#7FA9A0", size: 1.5 },
+      ],
+      bars: [{ upColor: "#C4956A", downColor: "#7FA9A0" }],
+    };
+  }
+
+  if (indicator === "RSI") {
+    return {
+      lines: [{ color: "#B69DB8", size: 1.5 }],
+    };
+  }
+
+  return undefined;
 }
 
 export function normalizeMaPeriod(value: string): number | null {
@@ -434,6 +454,13 @@ export function CandlestickChart({
 
         if (isActive && !exists) {
           chart.createIndicator(indicator, paneOptions.id === "candle_pane", paneOptions);
+          const indicatorStyles = getIndicatorStyles(indicator);
+          if (indicatorStyles) {
+            chart.overrideIndicator({
+              name: indicator,
+              styles: indicatorStyles,
+            } as Parameters<typeof chart.overrideIndicator>[0]);
+          }
           chart.setPaneOptions({ id: paneOptions.id, height: paneOptions.height ?? 80 });
 
           const precision = INDICATOR_PRECISIONS[indicator];
@@ -470,7 +497,7 @@ export function CandlestickChart({
   }, [realtimeBar]);
 
   return (
-    <div className="relative overflow-hidden bg-black" style={{ height: "calc(100vh - 160px)" }}>
+    <div className="relative h-full overflow-hidden bg-black">
       <div ref={containerRef} className="h-full w-full" />
 
       {isLoading ? (

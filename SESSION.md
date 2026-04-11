@@ -1,6 +1,6 @@
 # SESSION.md — FinMind 專案狀態
 
-更新時間：2026-04-09
+更新時間：2026-04-10
 
 ---
 
@@ -49,6 +49,7 @@ railway up
 | MACD/RSI n/a Bug | ✅ 已修復並部署 | 見下方根因分析 |
 | Deploy 最新改動 | ✅ 完成 | 2026-04-05，從根目錄 `railway up` |
 | 盤中即時 K 線更新 | ✅ 完成 | 2026-04-09，TWSE 免費 API + DataLoader.subscribeBar，60 秒 polling |
+| 後端 realtime route 未部署修復 | ✅ 完成 | 2026-04-10，後端服務重新 `railway up`，/api/realtime/{stock_id} 上線 |
 | Header 大股價顯示 | ❌ 未做 | |
 | Hover-only OHLCV tooltip | ❌ 未做 | |
 | Morandi 指標線發光效果 | ❌ 未做 | |
@@ -96,6 +97,22 @@ railway up
 - 正確上傳（從根目錄）：build time 4.6s，page chunk hash `6971f26ebd64b196`
 
 **修復：** 永遠從專案根目錄 `/Users/lollapalooza/Desktop/FinMind/` 執行 `railway up`。
+
+---
+
+---
+
+### Bug 4：盤中不更新股價（2026-04-10）
+
+**症狀：** 盤中股價完全不更新，`/api/realtime/{stock_id}` 永遠回傳 404。
+
+**根因：** 後端服務從未重新 deploy。commit `e7721f0` 加了 realtime route，但 `./deploy.sh` 只部署前端（railway CLI 當時 link 到 frontend service）。後端 Railway service（FinMind）沒有跟著 deploy，線上後端一直是舊版，route 不存在。
+
+FastAPI 的 default 404 是 `{"detail":"Not Found"}`，自訂的是 `{"detail":"Realtime price not available"}`。看到前者代表 route 根本不存在；看到後者才是 TWSE API 的問題。
+
+**修復：** `railway service FinMind` 切換到後端 service，`railway up` 部署後端。
+
+**教訓：** 前後端是兩個獨立 Railway service，`./deploy.sh` 只部署前端。後端有改動時必須手動切換 service 再 deploy。
 
 ---
 

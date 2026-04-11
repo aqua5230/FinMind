@@ -34,18 +34,20 @@ export function StockInfoBar({ stockId, stockName, latestPrice }: Props) {
         {latestPrice && (
           <>
             <span className="h-4 w-px bg-[#3A3A3C]" />
-            <span className="text-sm font-semibold text-white">
-              {latestPrice.close.toLocaleString("zh-TW", {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })}{" "}
-              TWD
-            </span>
-            <span className="text-xs" style={{ color }}>
-              {latestPrice.change >= 0 ? "+" : ""}
-              {latestPrice.change.toFixed(2)} ({Math.abs(latestPrice.changePct).toFixed(2)}%)
-              {arrow}
-            </span>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-bold text-white">
+                {latestPrice.close.toLocaleString("zh-TW", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}{" "}
+                TWD
+              </span>
+              <span className="text-xs" style={{ color }}>
+                {latestPrice.change >= 0 ? "+" : ""}
+                {latestPrice.change.toFixed(2)} ({Math.abs(latestPrice.changePct).toFixed(2)}%)
+                {arrow}
+              </span>
+            </div>
           </>
         )}
       </div>

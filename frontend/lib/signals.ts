@@ -169,3 +169,4 @@ export function calculateTradeSignals(candles: KLineData[]): TradeSignal[] {
 
   return signals;
 }
+// 1775926263

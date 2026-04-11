@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { SearchInput } from "@/components/ui/SearchInput";
 
 type Props = {
@@ -19,7 +20,9 @@ export function AppHeader({
 }: Props) {
   return (
     <header className="flex h-[52px] items-center border-b border-[#3A3A3C] bg-black px-6">
-      <div className="w-72" aria-hidden="true" />
+      <div className="flex w-72 items-center">
+        <Image src="/logo.png" alt="FinMind" width={32} height={32} className="rounded-lg" />
+      </div>
       <div className="flex flex-1 justify-center">
         <SearchInput
           value={searchValue}

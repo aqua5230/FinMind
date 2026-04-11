@@ -42,7 +42,7 @@ export function StockInfoBar({ stockId, stockName, latestPrice }: Props) {
                 })}
               </span>
               <span
-                className={`${changeBadgeClass} rounded-md px-2 py-0.5 text-xs font-semibold text-white`}
+                className={`${changeBadgeClass} rounded-md px-2.5 py-1 text-sm font-semibold text-white`}
               >
                 {changeSymbol}{" "}
                 {latestPrice.change >= 0 ? "+" : ""}

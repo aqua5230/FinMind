@@ -8,3 +8,7 @@ fastapi
 uvicorn[standard]
 cachetools
 yfinance>=0.2.54
+numpy
+pandas
+esun_trade
+esun_marketdata

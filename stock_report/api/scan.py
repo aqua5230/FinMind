@@ -16,13 +16,7 @@ from stock_report.api.finmind import FinMindClient
 from stock_report.data.tw_stocks import TW_STOCK_IDS
 
 
-BOLL_PERIOD = 20
-BOLL_MULTIPLIER = 2
 RSI_PERIOD = 14
-VOLUME_MA_PERIOD = 10
-MACD_FAST = 12
-MACD_SLOW = 26
-MACD_SIGNAL = 9
 RECENT_TRADING_DAYS = 5
 PRICE_LOOKBACK_DAYS = 120
 MAX_CONCURRENT_FETCHES = 10
@@ -63,23 +57,16 @@ class ScanResponse(BaseModel):
 
 def calculate_signals(prices: Sequence[PriceBar]) -> list[date]:
     bars = sorted(prices, key=lambda item: item.date)
-    if len(bars) < MACD_SLOW + MACD_SIGNAL:
+    if len(bars) < RSI_PERIOD:
         return []
 
-    boll = _calculate_boll(bars)
     rsi = _calculate_rsi(bars)
-    macd = _calculate_macd(bars)
-    volume_ma = _calculate_volume_ma(bars)
     recent_start = max(1, len(bars) - RECENT_TRADING_DAYS)
     signals: list[date] = []
 
     for index in range(recent_start, len(bars)):
-        previous_lower = boll[index - 1]
-        current_lower = boll[index]
         current_rsi = rsi[index]
         peak_20 = max(bar.close for bar in bars[max(0, index - 20):index])
-        previous_histogram = macd[index - 1]
-        current_histogram = macd[index]
 
         if (
             current_rsi is not None
@@ -241,26 +228,6 @@ def _map_price_rows(rows: Sequence[dict[str, Any]]) -> list[PriceBar]:
     return prices
 
 
-def _calculate_boll(prices: Sequence[PriceBar]) -> list[float | None]:
-    values: list[float | None] = []
-    window_sum = 0.0
-
-    for index, bar in enumerate(prices):
-        window_sum += bar.close
-        if index < BOLL_PERIOD - 1:
-            values.append(None)
-            continue
-
-        start = index - BOLL_PERIOD + 1
-        window = prices[start : index + 1]
-        middle = window_sum / BOLL_PERIOD
-        variance = sum((item.close - middle) ** 2 for item in window) / BOLL_PERIOD
-        values.append(middle - BOLL_MULTIPLIER * math.sqrt(variance))
-        window_sum -= prices[start].close
-
-    return values
-
-
 def _calculate_rsi(prices: Sequence[PriceBar]) -> list[float | None]:
     values: list[float | None] = [None] * len(prices)
     if len(prices) <= RSI_PERIOD:
@@ -293,71 +260,3 @@ def _rsi_from_averages(average_gain: float, average_loss: float) -> float:
         return 100.0
     relative_strength = average_gain / average_loss
     return 100 - 100 / (1 + relative_strength)
-
-
-def _calculate_macd(prices: Sequence[PriceBar]) -> list[float | None]:
-    fast_ema = _calculate_ema([item.close for item in prices], MACD_FAST)
-    slow_ema = _calculate_ema([item.close for item in prices], MACD_SLOW)
-    dif: list[float | None] = [
-        fast - slow if fast is not None and slow is not None else None
-        for fast, slow in zip(fast_ema, slow_ema)
-    ]
-    dea = _calculate_ema_for_optional_values(dif, MACD_SIGNAL)
-    return [
-        dif_value - dea_value if dif_value is not None and dea_value is not None else None
-        for dif_value, dea_value in zip(dif, dea)
-    ]
-
-
-def _calculate_ema(values: Sequence[float], period: int) -> list[float | None]:
-    ema: list[float | None] = [None] * len(values)
-    if len(values) < period:
-        return ema
-
-    current = sum(values[:period]) / period
-    ema[period - 1] = current
-    multiplier = 2 / (period + 1)
-    for index in range(period, len(values)):
-        current = (values[index] - current) * multiplier + current
-        ema[index] = current
-
-    return ema
-
-
-def _calculate_ema_for_optional_values(values: Sequence[float | None], period: int) -> list[float | None]:
-    ema: list[float | None] = [None] * len(values)
-    ready_values: list[float] = []
-    current: float | None = None
-    multiplier = 2 / (period + 1)
-
-    for index, value in enumerate(values):
-        if value is None:
-            continue
-
-        if current is None:
-            ready_values.append(value)
-            if len(ready_values) == period:
-                current = sum(ready_values) / period
-                ema[index] = current
-            continue
-
-        current = (value - current) * multiplier + current
-        ema[index] = current
-
-    return ema
-
-
-def _calculate_volume_ma(prices: Sequence[PriceBar]) -> list[float | None]:
-    values: list[float | None] = []
-    window_sum = 0
-
-    for index, bar in enumerate(prices):
-        window_sum += bar.volume
-        if index < VOLUME_MA_PERIOD - 1:
-            values.append(None)
-            continue
-
-        values.append(window_sum / VOLUME_MA_PERIOD)
-        window_sum -= prices[index - VOLUME_MA_PERIOD + 1].volume
-
-    return values

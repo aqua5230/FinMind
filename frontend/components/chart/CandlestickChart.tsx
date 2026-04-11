@@ -61,7 +61,7 @@ const INDICATOR_PRECISIONS: Partial<Record<IndicatorKey, number>> = {
 };
 const SIGNAL_GROUP_ID = "signals";
 const SIGNAL_OVERLAY_NAME = "tradeSignalMarker";
-const SIGNAL_REQUIRED_INDICATORS: IndicatorKey[] = ["BOLL", "MACD", "RSI"];
+const SIGNAL_REQUIRED_INDICATORS: IndicatorKey[] = ["RSI"];
 const SIGNAL_COLORS: Record<TradeSignalType, string> = {
   long: "#33B1FF",
   short: "#E540FF",

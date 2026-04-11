@@ -12,6 +12,8 @@ frontend/node_modules/
 frontend/.next/
 frontend/.env.local
 *.pdf
+trading/config*.ini
+*.p12
 
 scripts/
 tests/

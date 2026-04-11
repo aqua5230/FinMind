@@ -21,7 +21,7 @@ def get_tw_stock_ids() -> List[str]:
     urls = [TWSE_URL, TPEX_URL]
     for url in urls:
         try:
-            response = requests.get(url, timeout=10, verify=False)
+            response = requests.get(url, timeout=10)
             response.raise_for_status()
             data = response.json()
             for item in data:

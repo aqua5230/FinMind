@@ -8,46 +8,7 @@ export type TradeSignal = {
   value: number;
 };
 
-const BOLL_PERIOD = 20;
-const BOLL_MULTIPLIER = 2;
 const RSI_PERIOD = 14;
-const VOLUME_MA_PERIOD = 10;
-const MACD_FAST = 12;
-const MACD_SLOW = 26;
-const MACD_SIGNAL = 9;
-
-type BollPoint = {
-  upper: number | null;
-  lower: number | null;
-};
-
-type MacdPoint = {
-  histogram: number | null;
-};
-
-function calculateBoll(candles: KLineData[]): BollPoint[] {
-  let sum = 0;
-  return candles.map((candle, index) => {
-    sum += candle.close;
-
-    if (index < BOLL_PERIOD - 1) {
-      return { upper: null, lower: null };
-    }
-
-    const start = index - BOLL_PERIOD + 1;
-    const window = candles.slice(start, index + 1);
-    const middle = sum / BOLL_PERIOD;
-    const variance = window.reduce((total, item) => total + (item.close - middle) ** 2, 0) / BOLL_PERIOD;
-    const deviation = Math.sqrt(variance);
-
-    sum -= candles[start].close;
-
-    return {
-      upper: middle + BOLL_MULTIPLIER * deviation,
-      lower: middle - BOLL_MULTIPLIER * deviation,
-    };
-  });
-}
 
 function calculateRsi(candles: KLineData[]): Array<number | null> {
   const result: Array<number | null> = new Array(candles.length).fill(null);
@@ -76,68 +37,6 @@ function calculateRsi(candles: KLineData[]): Array<number | null> {
   }
 
   return result;
-}
-
-function calculateMacd(candles: KLineData[]): MacdPoint[] {
-  let closeSum = 0;
-  let fastEma = 0;
-  let slowEma = 0;
-  let difSum = 0;
-  let dea = 0;
-  const maxPeriod = Math.max(MACD_FAST, MACD_SLOW);
-
-  return candles.map((candle, index) => {
-    closeSum += candle.close;
-
-    if (index >= MACD_FAST - 1) {
-      fastEma =
-        index === MACD_FAST - 1
-          ? closeSum / MACD_FAST
-          : (2 * candle.close + (MACD_FAST - 1) * fastEma) / (MACD_FAST + 1);
-    }
-
-    if (index >= MACD_SLOW - 1) {
-      slowEma =
-        index === MACD_SLOW - 1
-          ? closeSum / MACD_SLOW
-          : (2 * candle.close + (MACD_SLOW - 1) * slowEma) / (MACD_SLOW + 1);
-    }
-
-    if (index < maxPeriod - 1) {
-      return { histogram: null };
-    }
-
-    const dif = fastEma - slowEma;
-    difSum += dif;
-
-    if (index < maxPeriod + MACD_SIGNAL - 2) {
-      return { histogram: null };
-    }
-
-    dea =
-      index === maxPeriod + MACD_SIGNAL - 2
-        ? difSum / MACD_SIGNAL
-        : (2 * dif + (MACD_SIGNAL - 1) * dea) / (MACD_SIGNAL + 1);
-
-    return { histogram: dif - dea };
-  });
-}
-
-function calculateVolumeMa(candles: KLineData[]): Array<number | null> {
-  let sum = 0;
-
-  return candles.map((candle, index) => {
-    sum += candle.volume as number;
-
-    if (index < VOLUME_MA_PERIOD - 1) {
-      return null;
-    }
-
-    const average = sum / VOLUME_MA_PERIOD;
-    sum -= candles[index - VOLUME_MA_PERIOD + 1].volume as number;
-
-    return average;
-  });
 }
 
 function isNumber(value: number | null): value is number {

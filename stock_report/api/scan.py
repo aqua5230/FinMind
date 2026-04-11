@@ -10,6 +10,7 @@ from typing import Any, Sequence
 from cachetools import TTLCache
 from fastapi import APIRouter
 from pydantic import BaseModel, ConfigDict
+import yfinance as yf
 
 from stock_report.api.finmind import FinMindClient
 from stock_report.data.tw_stocks import TW_STOCK_IDS
@@ -185,7 +186,46 @@ def _get_stock_names() -> dict[str, str]:
 
 
 def _fetch_stock_prices(stock_id: str, start_date: str, end_date: str) -> list[dict[str, Any]]:
-    return FinMindClient().fetch("TaiwanStockPrice", stock_id, start_date, end_date)
+    for suffix in (".TW", ".TWO"):
+        ticker = f"{stock_id}{suffix}"
+        try:
+            history = yf.download(
+                ticker,
+                start=start_date,
+                end=end_date,
+                progress=False,
+                auto_adjust=False,
+            )
+        except Exception as exc:
+            logger.warning("Failed to fetch yfinance prices for %s: %s", ticker, exc)
+            continue
+
+        if history.empty:
+            continue
+
+        if getattr(history.columns, "nlevels", 1) > 1:
+            history.columns = history.columns.get_level_values(0)
+
+        rows: list[dict[str, Any]] = []
+        for index, row in history.iterrows():
+            close = float(row["Close"])
+            low = float(row["Low"])
+            volume = int(row["Volume"])
+            if math.isnan(close) or math.isnan(low) or volume <= 0:
+                continue
+            rows.append(
+                {
+                    "date": index.date().isoformat(),
+                    "close": close,
+                    "volume": volume,
+                    "min": low,
+                    "Trading_Volume": volume,
+                }
+            )
+        if rows:
+            return rows
+
+    return []
 
 
 def _map_price_rows(rows: Sequence[dict[str, Any]]) -> list[PriceBar]:

@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, model_validator
 
 from stock_report.api.finmind import FinMindClient
+from stock_report.api.scan import router as scan_router
 from stock_report.config import settings
 from stock_report.exceptions import FinMindAPIError, FinMindBaseError, InvalidStockError
 from stock_report.models import StockReport
@@ -95,6 +96,9 @@ def verify_api_key(x_api_key: str | None = Header(default=None, alias="X-API-Key
 
     if x_api_key != settings.api_key:
         raise HTTPException(status_code=403, detail="Forbidden")
+
+
+router.include_router(scan_router, dependencies=[Depends(verify_api_key)])
 
 
 @router.post("/report", response_model=StockReport)

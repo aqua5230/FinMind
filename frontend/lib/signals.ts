@@ -149,59 +149,24 @@ function isNumber(value: number | null): value is number {
 }
 
 export function calculateTradeSignals(candles: KLineData[]): TradeSignal[] {
-  const boll = calculateBoll(candles);
   const rsi = calculateRsi(candles);
-  const macd = calculateMacd(candles);
-  const volMa = calculateVolumeMa(candles);
   const signals: TradeSignal[] = [];
 
   for (let index = 1; index < candles.length; index += 1) {
     const candle = candles[index];
-    const previousCandle = candles[index - 1];
-    const currentBoll = boll[index];
-    const previousBoll = boll[index - 1];
     const currentRsi = rsi[index];
     const startIdx = Math.max(0, index - 20);
     const peak20 = Math.max(...candles.slice(startIdx, index).map((c) => c.close));
-    const currentHistogram = macd[index].histogram;
-    const previousHistogram = macd[index - 1].histogram;
 
     if (
-      isNumber(previousBoll.lower) &&
-      isNumber(currentBoll.lower) &&
       isNumber(currentRsi) &&
-      isNumber(currentHistogram) &&
-      isNumber(previousHistogram) &&
-      previousCandle.close < previousBoll.lower &&
-      candle.close > currentBoll.lower &&
       currentRsi < 30 &&
-      candle.close <= peak20 * 0.8 &&
-      currentHistogram > previousHistogram &&
-      previousHistogram < 0
+      candle.close <= peak20 * 0.8
     ) {
       signals.push({
         type: "long",
         timestamp: candle.timestamp,
         value: candle.low * 0.995,
-      });
-    }
-
-    if (
-      isNumber(previousBoll.upper) &&
-      isNumber(currentBoll.upper) &&
-      isNumber(currentRsi) &&
-      isNumber(currentHistogram) &&
-      isNumber(previousHistogram) &&
-      previousCandle.close > previousBoll.upper &&
-      candle.close < currentBoll.upper &&
-      currentRsi > 70 &&
-      currentHistogram < previousHistogram &&
-      previousHistogram > 0
-    ) {
-      signals.push({
-        type: "short",
-        timestamp: candle.timestamp,
-        value: candle.high * 1.005,
       });
     }
   }

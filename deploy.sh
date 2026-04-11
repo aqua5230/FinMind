@@ -33,7 +33,8 @@ fi
 
 echo "✅ 準備部署..."
 
-# 4. 上傳並部署
+# 4. 確保連到前端 service 再上傳
+railway service frontend
 railway up
 
 echo ""

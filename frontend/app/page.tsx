@@ -81,7 +81,6 @@ export default function Home() {
     try {
       await loadStock(result.stock_id, result.stock_name, SCAN_INDICATORS);
       setError("");
-      setIsScanPanelOpen(false);
     } catch (err) {
       setLatestPrice(null);
       setError(err instanceof Error ? err.message : "查詢失敗，請稍後再試");

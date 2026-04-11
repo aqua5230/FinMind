@@ -76,9 +76,9 @@ def calculate_signals(prices: Sequence[PriceBar]) -> list[date]:
         previous_lower = boll[index - 1]
         current_lower = boll[index]
         current_rsi = rsi[index]
+        peak_20 = max(bar.close for bar in bars[max(0, index - 20):index])
         previous_histogram = macd[index - 1]
         current_histogram = macd[index]
-        current_volume_ma = volume_ma[index]
 
         if (
             previous_lower is not None
@@ -86,13 +86,12 @@ def calculate_signals(prices: Sequence[PriceBar]) -> list[date]:
             and current_rsi is not None
             and previous_histogram is not None
             and current_histogram is not None
-            and current_volume_ma is not None
             and bars[index - 1].close < previous_lower
             and bars[index].close > current_lower
-            and current_rsi < 35
+            and current_rsi < 30
+            and bars[index].close <= peak_20 * 0.8
             and current_histogram > previous_histogram
             and previous_histogram < 0
-            and bars[index].volume > current_volume_ma * 1.2
         ):
             signals.append(bars[index].date)
 

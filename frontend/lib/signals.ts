@@ -161,9 +161,10 @@ export function calculateTradeSignals(candles: KLineData[]): TradeSignal[] {
     const currentBoll = boll[index];
     const previousBoll = boll[index - 1];
     const currentRsi = rsi[index];
+    const startIdx = Math.max(0, index - 20);
+    const peak20 = Math.max(...candles.slice(startIdx, index).map((c) => c.close));
     const currentHistogram = macd[index].histogram;
     const previousHistogram = macd[index - 1].histogram;
-    const currentVolMa = volMa[index];
 
     if (
       isNumber(previousBoll.lower) &&
@@ -171,13 +172,12 @@ export function calculateTradeSignals(candles: KLineData[]): TradeSignal[] {
       isNumber(currentRsi) &&
       isNumber(currentHistogram) &&
       isNumber(previousHistogram) &&
-      isNumber(currentVolMa) &&
       previousCandle.close < previousBoll.lower &&
       candle.close > currentBoll.lower &&
-      currentRsi < 35 &&
+      currentRsi < 30 &&
+      candle.close <= peak20 * 0.8 &&
       currentHistogram > previousHistogram &&
-      previousHistogram < 0 &&
-      (candle.volume as number) > currentVolMa * 1.2
+      previousHistogram < 0
     ) {
       signals.push({
         type: "long",

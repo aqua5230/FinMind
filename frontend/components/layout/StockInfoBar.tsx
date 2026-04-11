@@ -9,23 +9,23 @@ type Props = {
 };
 
 export function StockInfoBar({ stockId, stockName, latestPrice }: Props) {
-  const color = !latestPrice
-    ? "#8E8E93"
+  const changeBadgeClass = !latestPrice
+    ? "bg-[#8E8E93]"
     : latestPrice.change > 0
-      ? "#30D158"
+      ? "bg-[#30D158]"
       : latestPrice.change < 0
-        ? "#FF453A"
-        : "#8E8E93";
-  const arrow = !latestPrice
-    ? ""
+        ? "bg-[#FF453A]"
+        : "bg-[#8E8E93]";
+  const changeSymbol = !latestPrice
+    ? "—"
     : latestPrice.change > 0
-      ? " ↑"
+      ? "▲"
       : latestPrice.change < 0
-        ? " ↓"
-        : " —";
+        ? "▼"
+        : "—";
 
   return (
-    <div className="flex h-11 items-center border-b border-[#3A3A3C] bg-[#1C1C1E] px-6">
+    <div className="flex h-auto min-h-[44px] items-center border-b border-[#3A3A3C] bg-[#1C1C1E] px-6 py-1.5">
       <div className="flex items-center gap-3">
         <span className="rounded-md bg-[#2C2C2E] px-2.5 py-0.5 text-xs font-medium text-[#8E8E93]">
           {stockId}
@@ -35,16 +35,18 @@ export function StockInfoBar({ stockId, stockName, latestPrice }: Props) {
           <>
             <span className="h-4 w-px bg-[#3A3A3C]" />
             <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-bold text-white">
+              <span className="text-4xl font-bold text-white">
                 {latestPrice.close.toLocaleString("zh-TW", {
                   minimumFractionDigits: 2,
                   maximumFractionDigits: 2,
                 })}
               </span>
-              <span className="text-xs" style={{ color }}>
+              <span
+                className={`${changeBadgeClass} rounded-md px-2 py-0.5 text-xs font-semibold text-white`}
+              >
+                {changeSymbol}{" "}
                 {latestPrice.change >= 0 ? "+" : ""}
                 {latestPrice.change.toFixed(2)} ({Math.abs(latestPrice.changePct).toFixed(2)}%)
-                {arrow}
               </span>
             </div>
           </>

@@ -1,6 +1,6 @@
 # SESSION.md — FinMind 專案狀態
 
-更新時間：2026-04-10
+更新時間：2026-04-11
 
 ---
 
@@ -50,9 +50,9 @@ railway up
 | Deploy 最新改動 | ✅ 完成 | 2026-04-05，從根目錄 `railway up` |
 | 盤中即時 K 線更新 | ✅ 完成 | 2026-04-09，TWSE 免費 API + DataLoader.subscribeBar，60 秒 polling |
 | 後端 realtime route 未部署修復 | ✅ 完成 | 2026-04-10，後端服務重新 `railway up`，/api/realtime/{stock_id} 上線 |
-| Header 大股價顯示 | ❌ 未做 | |
-| Hover-only OHLCV tooltip | ❌ 未做 | |
-| Morandi 指標線發光效果 | ❌ 未做 | |
+| Header 大股價顯示 | ✅ 完成 | StockInfoBar text-2xl font-bold |
+| Hover-only OHLCV tooltip | ✅ 完成 | showRule 改 follow_cross |
+| Morandi 指標線發光效果 | ✅ 完成 | MACD/RSI 覆寫 Morandi 色 + size 1.5 |
 
 ---
 
@@ -141,6 +141,12 @@ FastAPI 的 default 404 是 `{"detail":"Not Found"}`，自訂的是 `{"detail":"
 
 1. ✅ ~~Deploy 到 Railway（從根目錄 `railway up`）~~ — 已完成
 2. ✅ ~~盤中即時 K 線更新~~ — 已完成（TWSE API + subscribeBar）
-3. Header 大股價顯示
-4. Hover-only OHLCV tooltip
-5. Morandi 指標線發光效果
+3. ✅ ~~Header 大股價顯示~~ — 已完成
+4. ✅ ~~Hover-only OHLCV tooltip~~ — 已完成
+5. ✅ ~~Morandi 指標線發光效果~~ — 已完成
+
+**功能層面可以加（下一階段）：**
+- 分時圖（intraday，目前只有日/週/月）
+- 自選股 watchlist（localStorage）
+- 股票名稱搜尋（目前只能打代號）
+- 財務報告頁（後端 /api/report 已有，前端未接）

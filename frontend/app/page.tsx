@@ -239,7 +239,7 @@ export default function Home() {
           <div className="w-[18px] h-[18px] bg-[#00E5FF] flex items-center justify-center text-black">
             <Terminal size={12} strokeWidth={3} />
           </div>
-          <span className={`text-[17px] font-bold tracking-widest ${C_SYS}`}>量化終端_v2.6</span>
+          <span className={`text-[17px] font-bold tracking-widest ${C_SYS}`}>量化終端_v2.7</span>
           <span className="text-[#555] text-[15px]">|</span>
           <span className="text-[16px] text-[#888] flex items-center">
             <Activity size={10} className="mr-1.5 text-[#00FF66] animate-pulse" />

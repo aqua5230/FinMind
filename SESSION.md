@@ -96,10 +96,36 @@ FinMind/
 | /api/db-status 端點 | routes.py 新增，回傳 has_price_data + latest_price_date，DB 掛掉回 503 |
 | 新分頁配色統一 | StockInfoBar / KLinePanel / PillButton 全面換成終端機風格（#050505 底、#222222 邊框、cyan #00E5FF、neon green/red 漲跌色）|
 
-### 待處理（下個 session）
+### 2026-04-12 session 3（進行中：Railway 部署快取問題）
+| 項目 | 狀態 | 說明 |
+|------|------|------|
+| T+10 勝率 badge 改動 | ✅ code 完成 | ScanPanel 加說明行 75.8%（n=487），commit `0c62460` |
+| Railway 部署驗證 | ⚠️ 疑似沒部署到 | 線上 page chunk `page-12019b3ead1da7c2.js` 連續 6 次 deploy 都不變，bundle 內找不到 T+10/n=487/勝率字串 |
+| deploy.sh 修復 | ✅ | 延長等待 90s、移除 grep 中斷，commit `20f3f15` |
+| webpack cache → memory | ✅ code 完成 | next.config.ts 改 `cache: { type: 'memory' }`，commit `fe75d1f` |
+| v2.6 → v2.7 驗證測試 | 🔄 部署中 | 如果 HTML 標題沒變 → Railway 根本沒部署新 code；有變 → ScanPanel 變更是 tree-shake 問題 |
+
+### 診斷結論（2026-04-12）
+- 本地 `npm run build` 產出 `page-1f504eb10d09f06a.js`，內含「訊號條件/T+10/n=487」
+- Railway 產出 `page-12019b3ead1da7c2.js`，只含「訊號」「掃描」（fallback branch），**沒有新 badge 字串**
+- Railway 每次 build log 顯示 `✓ Compiled successfully`，Docker image digest 也有變
+- 但 Next.js chunk hash 從未改變 → 懷疑 source 沒被真正 build，或有 Railpack 層級的 content cache
+
+### 已嘗試失敗的方案
+1. `NIXPACKS_NO_CACHE=true` env var（早就有，無效）
+2. `NEXT_PRIVATE_DISABLE_CACHE=1` env var
+3. `BUILD_CACHE_BUST` env var + `next.config.ts` webpack version 機制
+4. bump `package.json` 版本 0.3.0 → 0.3.1
+5. `next.config.ts` webpack `cache: { type: 'memory' }`
+6. `rm -rf .next/cache` build command（volume busy 失敗）
+
+### 下一步（v2.7 部署後決策）
+- **v2.7 HTML 有更新** → 部署機制正常，ScanPanel 改動被 tree-shake 或沒進 page chunk，需查實際 chunk 結構
+- **v2.7 HTML 沒更新** → Railway 根本沒 build 新 commit，需手動到 dashboard 清 build cache 或重建 service
+
+### 待處理（session 3 之後）
 | 項目 | 優先度 | 說明 |
 |------|--------|------|
-| T+10 勝率顯示在掃描 UI | ✅ 完成 + 部署 | ScanPanel 加入說明行，75.8%（n=487），cyan 標色 |
 | 訊號記錄系統 | MED | 進場日/股票/價格 → T+10 追蹤，驗證策略持續有效性 |
 | 申請玉山正式 API 金鑰 | LOW | esun_trade 只能本地用，Railway 上需另外處理（暫緩） |
 

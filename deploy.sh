@@ -38,10 +38,10 @@ railway service frontend
 railway up
 
 echo ""
-echo "⏳ 等待新版本生效..."
-sleep 5
+echo "⏳ 等待新版本生效（最多 90 秒）..."
+sleep 90
 
-# 5. 驗證 bundle 是否真的更新（比對 image digest）
+# 5. 驗證 bundle 是否真的更新
 echo ""
 echo "🔍 驗證線上 bundle..."
 PAGE_CHUNK=$(curl -s https://frontend-production-8b27.up.railway.app/ | grep -o '_next/static/chunks/app/page-[^"]*' | head -1)
@@ -52,10 +52,6 @@ fi
 
 echo "page chunk: $PAGE_CHUNK"
 
-# 抓 createIndicator 相關呼叫（可以改成其他關鍵字）
-RESULT=$(curl -s "https://frontend-production-8b27.up.railway.app/${PAGE_CHUNK}" | grep -o 'createIndicator[^)]*)')
-echo "$RESULT"
-
 echo ""
-echo "✅ 部署完成。請確認上方 bundle 內容正確。"
+echo "✅ 部署完成。"
 echo "🌐 https://frontend-production-8b27.up.railway.app"

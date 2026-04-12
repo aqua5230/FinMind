@@ -17,7 +17,7 @@ const INDICATOR_TOGGLES: IndicatorKey[] = ["BOLL", "MACD", "RSI"];
 function getChartTypeButtonClass(active: boolean) {
   return [
     TEXT_TOGGLE_BUTTON_CLASS,
-    active ? "bg-[#3A3A3C] text-white" : "bg-transparent text-[#8E8E93] hover:text-white",
+    active ? "bg-[#1a1a1a] text-[#00E5FF]" : "bg-transparent text-[#555] hover:text-white",
   ].join(" ");
 }
 
@@ -64,7 +64,7 @@ function ChartControls() {
   }
 
   return (
-    <div className="flex items-center gap-4 border-b border-[#3A3A3C] bg-[#1C1C1E] px-4 py-2 overflow-x-auto">
+    <div className="flex items-center gap-4 border-b border-[#222222] bg-[#050505] px-4 py-2 overflow-x-auto">
       <div className="flex gap-1">
         {([
           { key: "D", label: "日" },
@@ -121,7 +121,7 @@ function ChartControls() {
         {maPeriods.map((value) => (
           <span
             key={value}
-            className="inline-flex items-center gap-1 rounded-md bg-[#2C2C2E] px-2 py-0.5 text-xs font-medium text-white"
+            className="inline-flex items-center gap-1 rounded-md bg-[#111] px-2 py-0.5 text-xs font-medium text-white"
           >
             {`MA${value}`}
             <button
@@ -147,7 +147,7 @@ function ChartControls() {
               addMaPeriod();
             }
           }}
-          className="h-7 w-16 rounded-lg border-none bg-[#2C2C2E] px-2 text-center text-xs text-white outline-none transition focus:outline focus:outline-1 focus:outline-[#0A84FF]"
+          className="h-7 w-16 rounded-lg border-none bg-[#111] px-2 text-center text-xs text-white outline-none transition focus:outline focus:outline-1 focus:outline-[#00E5FF]"
         />
       </div>
     </div>

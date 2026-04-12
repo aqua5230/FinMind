@@ -14,8 +14,8 @@ export function PillButton({ active = false, onClick, children, className = "" }
       onClick={onClick}
       className={`rounded-lg px-3 py-1.5 text-sm transition ${
         active
-          ? "bg-[#3A3A3C] text-white"
-          : "bg-transparent text-[#8E8E93] hover:bg-[#2C2C2E]"
+          ? "bg-[#1a1a1a] text-[#00E5FF]"
+          : "bg-transparent text-[#555] hover:bg-[#111]"
       } ${className}`.trim()}
     >
       {children}

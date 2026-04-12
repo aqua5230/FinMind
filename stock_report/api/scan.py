@@ -108,6 +108,7 @@ async def scan_stocks() -> ScanResponse:
             total_scanned=len(TW_STOCK_IDS),
             results=results,
         )
+        await _record_scan_signals(results)
         _scan_cache["scan"] = response
         return response
 
@@ -214,6 +215,25 @@ def _fetch_stock_prices(stock_id: str, start_date: str, end_date: str) -> list[d
             return rows
 
     return []
+
+
+async def _record_scan_signals(results: Sequence[ScanResult]) -> None:
+    for result in results:
+        try:
+            await asyncio.to_thread(_record_scan_signal, result)
+        except Exception as exc:
+            logger.warning(
+                "Failed to record scan signal stock_id=%s signal_date=%s: %s",
+                result.stock_id,
+                result.signal_date,
+                exc,
+            )
+
+
+def _record_scan_signal(result: ScanResult) -> None:
+    prices = db.query_prices(result.stock_id, result.signal_date, result.signal_date)
+    entry_price = float(prices[0]["close"]) if prices else None
+    db.insert_signal(result.stock_id, result.stock_name, result.signal_date, entry_price)
 
 
 def _map_price_rows(rows: Sequence[dict[str, Any]]) -> list[PriceBar]:

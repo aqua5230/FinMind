@@ -11,7 +11,7 @@ from pydantic import BaseModel, ConfigDict, model_validator
 from stock_report.api.finmind import FinMindClient
 from stock_report.api.scan import router as scan_router
 from stock_report.config import settings
-from stock_report.data.db import get_latest_price_date
+from stock_report.data.db import get_all_signals, get_latest_price_date, get_signal_stats
 from stock_report.exceptions import FinMindAPIError, FinMindBaseError, InvalidStockError
 from stock_report.models import StockReport
 from stock_report.services.report_service import ReportService
@@ -75,6 +75,30 @@ class DbStatusResponse(BaseModel):
     latest_price_date: str | None
 
 
+class SignalRecordResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    stock_id: str
+    stock_name: str
+    signal_date: str
+    entry_price: float | None
+    t10_date: str | None
+    t10_price: float | None
+    t10_return_pct: float | None
+    status: str
+    created_at: str
+
+
+class SignalStatsResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    total: int
+    resolved: int
+    pending: int
+    wins: int
+    win_rate_pct: float
+
+
 def _map_price_row(row: dict) -> PriceBar | None:
     try:
         bar = PriceBar(
@@ -110,6 +134,24 @@ def get_db_status() -> DbStatusResponse:
         has_price_data=latest_price_date is not None,
         latest_price_date=latest_price_date.isoformat() if latest_price_date is not None else None,
     )
+
+
+@router.get("/signals", response_model=list[SignalRecordResponse])
+def list_signals(limit: int = Query(default=100, ge=1, le=1000)) -> list[SignalRecordResponse]:
+    try:
+        return [SignalRecordResponse(**row) for row in get_all_signals(limit)]
+    except Exception as exc:
+        logger.warning("Failed to query signal records: %s", exc)
+        raise HTTPException(status_code=503, detail="Signal records unavailable") from exc
+
+
+@router.get("/signals/stats", response_model=SignalStatsResponse)
+def signal_stats() -> SignalStatsResponse:
+    try:
+        return SignalStatsResponse(**get_signal_stats())
+    except Exception as exc:
+        logger.warning("Failed to query signal stats: %s", exc)
+        raise HTTPException(status_code=503, detail="Signal stats unavailable") from exc
 
 
 def verify_api_key(x_api_key: str | None = Header(default=None, alias="X-API-Key")) -> None:

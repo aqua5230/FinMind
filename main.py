@@ -9,7 +9,13 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from stock_report.api.routes import router
-from stock_report.data.db import get_latest_price_date, init_db
+from stock_report.data.db import (
+    get_latest_price_date,
+    get_pending_signals,
+    init_db,
+    query_prices,
+    resolve_signal,
+)
 from stock_report.data.price_sync import sync_all_prices
 
 
@@ -51,6 +57,39 @@ def _should_run_initial_sync() -> bool:
     return should_sync
 
 
+def _resolve_pending_signals() -> None:
+    today = datetime.now(TAIPEI_TZ).date()
+    try:
+        pending_signals = get_pending_signals()
+    except Exception as exc:
+        logger.warning("Failed to query pending signals: %s", exc)
+        return
+
+    for signal in pending_signals:
+        stock_id = str(signal["stock_id"])
+        signal_date = date.fromisoformat(str(signal["signal_date"]))
+        try:
+            prices = query_prices(stock_id, signal_date + timedelta(days=1), today)
+            if len(prices) >= 10:
+                t10_bar = prices[9]
+                t10_date = date.fromisoformat(str(t10_bar["date"]))
+                t10_price = float(t10_bar["close"])
+                entry_price = signal.get("entry_price")
+                return_pct = None
+                if entry_price is not None and float(entry_price) > 0:
+                    return_pct = ((t10_price - float(entry_price)) / float(entry_price)) * 100
+                resolve_signal(stock_id, signal_date, t10_date, t10_price, return_pct)
+            elif signal_date + timedelta(days=20) < today:
+                resolve_signal(stock_id, signal_date, None, None, None, status="expired")
+        except Exception as exc:
+            logger.warning(
+                "Failed to resolve signal stock_id=%s signal_date=%s: %s",
+                stock_id,
+                signal_date,
+                exc,
+            )
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     scheduler = None
@@ -67,6 +106,14 @@ async def lifespan(app: FastAPI):
             sync_all_prices,
             CronTrigger(hour=8, minute=30, timezone="UTC"),
             id="sync_stock_prices",
+            replace_existing=True,
+            max_instances=1,
+            coalesce=True,
+        )
+        created_scheduler.add_job(
+            _resolve_pending_signals,
+            CronTrigger(hour=9, minute=0, timezone="UTC"),
+            id="resolve_pending_signals",
             replace_existing=True,
             max_instances=1,
             coalesce=True,

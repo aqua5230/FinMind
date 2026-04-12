@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { fetchScan, resolveStockId, type ScanResult } from "@/lib/api";
+import { API_URL as API_BASE, fetchScan, resolveStockId, type ScanResult } from "@/lib/api";
 
 const MACRO_INDICES = [
   { id: 'IDX.TAIEX', name: '加權指數', price: '35417.83', change: '+556.67', percent: '+1.60%', vol: '8295億' },
@@ -26,6 +26,13 @@ const C_BORDER = 'border-[#222222]';
 
 type WatchItem = { stock_id: string; stock_name: string };
 type ActiveTab = 'scan' | 'watch1' | 'watch2';
+type SignalStats = {
+  total: number;
+  resolved: number;
+  pending: number;
+  wins: number;
+  win_rate_pct: number;
+};
 
 type IconProps = { size?: number; className?: string; strokeWidth?: number };
 
@@ -82,6 +89,7 @@ export default function Home() {
   const [error, setError] = useState('');
   const [isScanning, setIsScanning] = useState(false);
   const [scanResults, setScanResults] = useState<ScanResult[]>([]);
+  const [signalStats, setSignalStats] = useState<SignalStats | null>(null);
   const [activeTab, setActiveTab] = useState<ActiveTab>('scan');
 
   const [watch1, setWatch1] = useState<WatchItem[]>([]);
@@ -106,6 +114,13 @@ export default function Home() {
 
   useEffect(() => {
     fetchScan().then(s => setScanResults(s.results)).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetch(`${API_BASE}/api/signals/stats`)
+      .then((response) => response.ok ? response.json() as Promise<SignalStats> : null)
+      .then((stats) => setSignalStats(stats))
+      .catch(() => {});
   }, []);
 
   const handleSearch = useCallback(async (value: string) => {
@@ -344,6 +359,13 @@ export default function Home() {
           {/* 掃描 tab */}
           {activeTab === 'scan' && (
             <div className="flex-1 flex flex-col overflow-hidden">
+              {signalStats !== null && signalStats.resolved > 0 && (
+                <div className={`px-4 py-2 border-b ${C_BORDER} text-[15px] text-[#888] shrink-0 bg-[#050505] tracking-wider`}>
+                  策略追蹤：{signalStats.resolved} 筆已結算，勝率{' '}
+                  <span className="text-[#00E5FF]">{signalStats.win_rate_pct}%</span>
+                  <span className="text-[#555] ml-2">({signalStats.pending} 筆追蹤中)</span>
+                </div>
+              )}
               {isScanning ? (
                 <div className="flex-1 flex items-center justify-center text-[#555] text-[15px]">掃描中…</div>
               ) : scanResults.length === 0 ? (

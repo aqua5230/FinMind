@@ -1,6 +1,6 @@
 # SESSION.md — FinMind 專案狀態
 
-更新時間：2026-04-11
+更新時間：2026-04-12
 
 ---
 
@@ -40,7 +40,7 @@ FinMind/
 
 ---
 
-## 當前階段：玉山 API 整合 + 掃描器優化
+## 當前階段：首頁改版（量化終端機風格）
 
 | 項目 | 狀態 | 備注 |
 |------|------|------|
@@ -48,6 +48,10 @@ FinMind/
 | ChartControls 分隔線優化 | ✅ 完成 | 顏色 #636366 |
 | 訊號箭頭系統 | ✅ 完成 | 藍↑做多，條件同步 |
 | 回測最佳化 | ✅ 完成 | RSI<30 + 跌幅≥20%，n=487，T+10 75.8% |
+| 首頁改版：量化終端機風格 | ✅ 完成 + 部署 | 黑底螢光配色，左側大盤+日誌，右側K線/監控列表 |
+| 搜尋列整合確認＋掃描按鈕 | ✅ 完成 + 部署 | 同一排：input → [↵ 確認] [掃描] |
+| AppHeader 移除 | ✅ 完成 | 搜尋移入終端機首頁，AppHeader 不再使用於 page.tsx |
+| 字型放大 | ✅ 完成 + 部署 | 全面升一級（最小 13px，標題 28px）|
 | 後端 /api/scan | ✅ 完成 + 部署 | 1075支（證交所動態），TTL快取10分鐘 |
 | 前端掃描器 UI | ✅ 完成 + 部署 | 點股票後面板保留，可直接切換 |
 | signals.ts 條件同步 | ✅ 完成 + 部署 | RSI<30 + 跌幅≥20%，移除 BOLL/MACD/short |
@@ -73,10 +77,22 @@ FinMind/
 | AppHeader 狀態提升 | searchValue 提升至 page.tsx，搜尋後清空，選掃描結果後填入代號 |
 | routes.py 冗餘過濾 | 移除 get_price 的多餘日期二次過濾 |
 
+### 2026-04-12 掃描穩定化（已全部部署）
+| 項目 | 說明 |
+|------|------|
+| Railway PostgreSQL | 新增 Postgres service，DATABASE_URL 注入後端 |
+| stock_report/data/db.py | 新增 DB 連線、init_db()、upsert_prices()、query_prices() |
+| stock_report/data/price_sync.py | 每日批次抓所有股票近150天資料存DB，含重試 |
+| scan.py | _fetch_stock_prices 改從 DB 讀，fallback yfinance |
+| main.py | 加 lifespan，啟動時 init_db + 首次同步，每天 16:30 自動更新 |
+| requirements.txt | 移除 esun_trade/esun_marketdata（Railway 找不到），加 psycopg2-binary/apscheduler |
+| 掃描預載 | page.tsx 頁面載入時背景 fetch，點按鈕瞬間顯示 |
+
 ### 待處理（下個 session）
 | 項目 | 優先度 | 說明 |
 |------|--------|------|
-| 資料源統一 | MED | scan.py 用 yfinance、routes.py 用 FinMind，兩套不一致。需評估 FinMind 配額是否足夠支撐 1700+ 支掃描，或考慮本地快取資料庫 |
+| 驗證掃描穩定性 | HIGH | 後端重啟後確認 DB 有資料、連打掃描結果一致 |
+| 申請玉山正式 API 金鑰 | MED | esun_trade 只能本地用，Railway 上需另外處理 |
 
 ---
 
@@ -140,8 +156,9 @@ FinMind/
 
 ## 核心檔案（下個 session 優先讀）
 
-1. `frontend/lib/signals.ts` — 訊號條件（RSI<30 + 跌幅≥20%）
-2. `stock_report/api/scan.py` — 掃描邏輯（同上條件）
-3. `stock_report/data/tw_stocks.py` — 動態抓取證交所股票清單
-4. `trading/test_order.py` — 玉山模擬下單測試
-5. `trading/config.simulation.ini` — 玉山模擬環境設定
+1. `frontend/app/page.tsx` — 首頁（量化終端機設計，含搜尋/掃描/K線/監控列表）
+2. `frontend/lib/signals.ts` — 訊號條件（RSI<30 + 跌幅≥20%）
+3. `stock_report/api/scan.py` — 掃描邏輯（同上條件）
+4. `stock_report/data/tw_stocks.py` — 動態抓取證交所股票清單
+5. `trading/test_order.py` — 玉山模擬下單測試
+6. `trading/config.simulation.ini` — 玉山模擬環境設定

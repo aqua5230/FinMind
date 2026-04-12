@@ -7,7 +7,6 @@ import {
 } from "@/components/chart/CandlestickChart";
 import { KLinePanel } from "@/components/chart/KLinePanel";
 import { StockInfoBar } from "@/components/layout/StockInfoBar";
-import { ScanPanel } from "@/components/ui/ScanPanel";
 import { fetchLatestPrice, fetchScan, resolveStockId, type ScanResult } from "@/lib/api";
 import type { LatestPrice, StockState } from "@/lib/types";
 
@@ -16,16 +15,6 @@ const MACRO_INDICES = [
   { id: 'IDX.TPEX', name: '櫃買指數', price: '425.30', change: '+4.15', percent: '+0.98%', vol: '1250億' },
   { id: 'FUT.TX00', name: '台指期近', price: '35420.00', change: '+643.00', percent: '+1.85%', vol: '12萬口' },
   { id: 'CUR.USDTWD', name: '美元/台幣', price: '31.850', change: '-0.150', percent: '-0.47%', vol: '12億' },
-];
-
-const QUANT_WATCHLIST = [
-  { sym: '2330.TW', name: '台積電', px: '2000.00', chg: '+45.00', pct: '+2.30%', signal: '強力買進' },
-  { sym: '2489.TW', name: '瑞軒', px: '42.75', chg: '+3.85', pct: '+9.89%', signal: '亮燈漲停' },
-  { sym: '3231.TW', name: '緯創', px: '125.00', chg: '+11.00', pct: '+9.65%', signal: '動能強勢' },
-  { sym: '2317.TW', name: '鴻海', px: '245.50', chg: '-1.50', pct: '-0.61%', signal: '區間盤整' },
-  { sym: '2603.TW', name: '長榮', px: '185.00', chg: '+8.50', pct: '+4.82%', signal: '持續建倉' },
-  { sym: '1519.TW', name: '華城', px: '850.00', chg: '-35.00', pct: '-3.95%', signal: '超買過熱' },
-  { sym: '2454.TW', name: '聯發科', px: '1520.00', chg: '+35.00', pct: '+2.36%', signal: '建議買進' },
 ];
 
 const SYSTEM_LOGS = [
@@ -41,6 +30,9 @@ const C_UP = 'text-[#00FF66]';
 const C_DOWN = 'text-[#FF003C]';
 const C_SYS = 'text-[#00E5FF]';
 const C_BORDER = 'border-[#222222]';
+
+type WatchItem = { stock_id: string; stock_name: string };
+type ActiveTab = 'scan' | 'watch1' | 'watch2';
 
 type IconProps = {
   size?: number;
@@ -99,18 +91,6 @@ function Terminal(props: IconProps) {
   );
 }
 
-function Crosshair(props: IconProps) {
-  return (
-    <Icon {...props}>
-      <circle cx="12" cy="12" r="7" />
-      <path d="M12 3v4" />
-      <path d="M12 17v4" />
-      <path d="M3 12h4" />
-      <path d="M17 12h4" />
-    </Icon>
-  );
-}
-
 function Database(props: IconProps) {
   return (
     <Icon {...props}>
@@ -125,7 +105,22 @@ function formatDate(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
+function loadWatchlist(key: string): WatchItem[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    return JSON.parse(localStorage.getItem(key) ?? '[]') as WatchItem[];
+  } catch {
+    return [];
+  }
+}
+
+function saveWatchlist(key: string, list: WatchItem[]) {
+  localStorage.setItem(key, JSON.stringify(list));
+}
+
 const SCAN_INDICATORS: IndicatorKey[] = ["BOLL", "MACD", "RSI"];
+const WL1_KEY = 'watchlist_1';
+const WL2_KEY = 'watchlist_2';
 
 export default function Home() {
   const [cmdInput, setCmdInput] = useState('');
@@ -134,9 +129,21 @@ export default function Home() {
   const [latestPrice, setLatestPrice] = useState<LatestPrice | null>(null);
   const [error, setError] = useState('');
   const [isScanning, setIsScanning] = useState(false);
-  const [isScanPanelOpen, setIsScanPanelOpen] = useState(false);
   const [scanResults, setScanResults] = useState<ScanResult[]>([]);
   const [chartSessionKey, setChartSessionKey] = useState(0);
+  const [activeTab, setActiveTab] = useState<ActiveTab>('scan');
+
+  const [watch1, setWatch1] = useState<WatchItem[]>([]);
+  const [watch2, setWatch2] = useState<WatchItem[]>([]);
+  const [wlInput1, setWlInput1] = useState('');
+  const [wlInput2, setWlInput2] = useState('');
+  const [wlError1, setWlError1] = useState('');
+  const [wlError2, setWlError2] = useState('');
+
+  useEffect(() => {
+    setWatch1(loadWatchlist(WL1_KEY));
+    setWatch2(loadWatchlist(WL2_KEY));
+  }, []);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -155,7 +162,6 @@ export default function Home() {
         // Ignore preload failures; clicking scan will retry normally.
       }
     };
-
     preloadScan();
   }, []);
 
@@ -187,13 +193,8 @@ export default function Home() {
   }, [cmdInput, loadStock]);
 
   const handleScan = useCallback(async () => {
-    if (scanResults.length > 0) {
-      setIsScanPanelOpen(true);
-      return;
-    }
-
+    if (scanResults.length > 0) return;
     setIsScanning(true);
-    setIsScanPanelOpen(true);
     setError('');
     try {
       const scan = await fetchScan();
@@ -216,6 +217,108 @@ export default function Home() {
       setError(err instanceof Error ? err.message : '查詢失敗，請稍後再試');
     }
   }, [loadStock]);
+
+  const handleAddWatch = useCallback(async (which: 1 | 2) => {
+    const input = which === 1 ? wlInput1.trim() : wlInput2.trim();
+    const setInput = which === 1 ? setWlInput1 : setWlInput2;
+    const setErr = which === 1 ? setWlError1 : setWlError2;
+    const list = which === 1 ? watch1 : watch2;
+    const setList = which === 1 ? setWatch1 : setWatch2;
+    const key = which === 1 ? WL1_KEY : WL2_KEY;
+    if (!input) return;
+    try {
+      const { stockId, stockName } = await resolveStockId(input);
+      if (list.some(w => w.stock_id === stockId)) { setErr('已在清單中'); return; }
+      const next = [...list, { stock_id: stockId, stock_name: stockName }];
+      setList(next);
+      saveWatchlist(key, next);
+      setInput('');
+      setErr('');
+    } catch {
+      setErr('找不到此股票');
+    }
+  }, [watch1, watch2, wlInput1, wlInput2]);
+
+  const handleRemoveWatch = useCallback((which: 1 | 2, stockId: string) => {
+    const list = which === 1 ? watch1 : watch2;
+    const setList = which === 1 ? setWatch1 : setWatch2;
+    const key = which === 1 ? WL1_KEY : WL2_KEY;
+    const next = list.filter(w => w.stock_id !== stockId);
+    setList(next);
+    saveWatchlist(key, next);
+  }, [watch1, watch2]);
+
+  const tabClass = (tab: ActiveTab) =>
+    `px-4 py-2 text-[15px] tracking-widest cursor-pointer border-b-2 transition-colors ${
+      activeTab === tab
+        ? `${C_SYS} border-[#00E5FF]`
+        : 'text-[#555] border-transparent hover:text-[#888]'
+    }`;
+
+  const renderWatchlist = (which: 1 | 2) => {
+    const list = which === 1 ? watch1 : watch2;
+    const input = which === 1 ? wlInput1 : wlInput2;
+    const setInput = which === 1 ? setWlInput1 : setWlInput2;
+    const err = which === 1 ? wlError1 : wlError2;
+    return (
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 overflow-auto">
+          {list.length === 0 ? (
+            <div className="px-4 py-8 text-[#555] text-[15px] text-center">清單為空，請新增標的</div>
+          ) : (
+            <table className="w-full text-left border-collapse">
+              <thead className={`sticky top-0 bg-[#000000] border-b ${C_BORDER} z-10`}>
+                <tr className="text-[16px] text-[#666] tracking-widest">
+                  <th className="py-2 px-4 font-normal w-[35%]">代號</th>
+                  <th className="py-2 px-4 font-normal">名稱</th>
+                  <th className="py-2 px-4 font-normal w-[10%]" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#111111]">
+                {list.map((w) => (
+                  <tr
+                    key={w.stock_id}
+                    className="hover:bg-[#0A0A0A] cursor-crosshair group transition-colors"
+                    onClick={() => handleSearch(w.stock_id.replace('.TW', ''))}
+                  >
+                    <td className={`py-3 px-4 text-[17px] ${C_SYS} group-hover:underline`}>{w.stock_id}</td>
+                    <td className="py-3 px-4 text-[17px] text-[#DDD]">{w.stock_name}</td>
+                    <td className="py-3 px-4 text-right">
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); handleRemoveWatch(which, w.stock_id); }}
+                        className="text-[#555] hover:text-[#FF003C] text-[17px] leading-none px-1 cursor-pointer"
+                      >
+                        ×
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+        <div className={`border-t ${C_BORDER} px-4 py-2 flex items-center gap-2 shrink-0 bg-[#050505]`}>
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => { setInput(e.target.value); (which === 1 ? setWlError1 : setWlError2)(''); }}
+            onKeyDown={(e) => e.key === 'Enter' && handleAddWatch(which)}
+            placeholder="輸入代號…"
+            className="flex-1 bg-transparent border border-[#333] focus:border-[#00E5FF] outline-none rounded-sm px-2 py-1 text-[15px] text-[#00E5FF] placeholder-[#444]"
+          />
+          <button
+            type="button"
+            onClick={() => handleAddWatch(which)}
+            className="text-[15px] text-[#00FF66] border border-[#00FF66]/40 px-2.5 py-1 rounded-sm hover:bg-[#00FF66]/10 cursor-pointer shrink-0 whitespace-nowrap"
+          >
+            新增
+          </button>
+          {err && <span className="text-[#FF003C] text-[13px] shrink-0">{err}</span>}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="h-screen w-full bg-[#000000] text-[#CCCCCC] font-mono flex flex-col selection:bg-[#00E5FF] selection:text-black overflow-hidden">
@@ -267,15 +370,6 @@ export default function Home() {
           {isScanning ? '掃描中...' : '掃描'}
         </button>
       </div>
-
-      {/* 掃描結果列 */}
-      {isScanPanelOpen && (
-        <ScanPanel
-          isLoading={isScanning}
-          results={scanResults}
-          onSelect={handleSelectScanResult}
-        />
-      )}
 
       {/* 錯誤訊息 */}
       {error && (
@@ -330,7 +424,7 @@ export default function Home() {
           </div>
         </div>
 
-        {/* 右側：K 線圖 or 監控列表 */}
+        {/* 右側：K 線圖 or 三 Tab 面板 */}
         <div className="w-[55%] flex flex-col bg-black">
           {stock ? (
             <>
@@ -352,60 +446,68 @@ export default function Home() {
               </div>
             </>
           ) : (
-            <>
-              <div className={`px-4 py-2 border-b ${C_BORDER} flex justify-between items-center shrink-0 bg-[#080808]`}>
-                <span className="text-[15px] text-[#666] tracking-widest flex items-center">
-                  <Crosshair size={12} className="mr-2" /> 活躍標的監控
-                </span>
-                <span className="text-[15px] text-[#444]">列數: 07</span>
+            <div className="flex-1 flex flex-col overflow-hidden">
+              {/* Tab bar */}
+              <div className={`flex items-end border-b ${C_BORDER} bg-[#080808] shrink-0 px-2`}>
+                <button type="button" className={tabClass('scan')} onClick={() => setActiveTab('scan')}>掃描</button>
+                <button type="button" className={tabClass('watch1')} onClick={() => setActiveTab('watch1')}>自選清單</button>
+                <button type="button" className={tabClass('watch2')} onClick={() => setActiveTab('watch2')}>自選清單二</button>
+                {activeTab === 'scan' && (
+                  <span className="ml-auto text-[13px] text-[#555] tracking-wider pb-2 pr-2">RSI &lt; 30 ｜ 跌幅 ≥ 20%</span>
+                )}
               </div>
-              <div className="flex-1 overflow-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead className={`sticky top-0 bg-[#000000] border-b ${C_BORDER} z-10`}>
-                    <tr className="text-[16px] text-[#666] tracking-widest">
-                      <th className="py-2 px-4 font-normal w-[15%]">代號</th>
-                      <th className="py-2 px-4 font-normal w-[20%]">名稱</th>
-                      <th className="py-2 px-4 font-normal text-right w-[15%]">最新價</th>
-                      <th className="py-2 px-4 font-normal text-right w-[15%]">漲跌點</th>
-                      <th className="py-2 px-4 font-normal text-right w-[15%]">漲跌幅</th>
-                      <th className="py-2 px-4 font-normal text-center w-[20%]">AI 訊號</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#111111]">
-                    {QUANT_WATCHLIST.map((s, i) => {
-                      const isUp = s.chg.startsWith('+');
-                      return (
-                        <tr
-                          key={i}
-                          className="hover:bg-[#0A0A0A] cursor-crosshair group transition-colors"
-                          onClick={() => handleSearch(s.sym.replace('.TW', ''))}
-                        >
-                          <td className={`py-3 px-4 text-[17px] ${C_SYS} group-hover:underline`}>{s.sym}</td>
-                          <td className="py-3 px-4 text-[17px] text-[#DDD]">{s.name}</td>
-                          <td className={`py-3 px-4 text-[18px] font-bold text-right ${isUp ? C_UP : C_DOWN}`}>{s.px}</td>
-                          <td className={`py-3 px-4 text-[17px] text-right ${isUp ? C_UP : C_DOWN}`}>{s.chg}</td>
-                          <td className={`py-3 px-4 text-[17px] text-right ${isUp ? C_UP : C_DOWN}`}>{s.pct}</td>
-                          <td className="py-3 px-4 text-center">
-                            <span className={`inline-block px-2 py-0.5 text-[15px] border ${
-                              s.signal === '強力買進' || s.signal === '亮燈漲停' ? 'border-[#00FF66] text-[#00FF66]' :
-                              s.signal === '超買過熱' ? 'border-[#FF003C] text-[#FF003C]' :
-                              s.signal === '動能強勢' ? 'border-[#FFCC00] text-[#FFCC00]' :
-                              'border-[#555] text-[#888]'
-                            }`}>
-                              {s.signal}
-                            </span>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-              <div className={`px-4 py-2 border-t ${C_BORDER} flex justify-between items-center shrink-0 bg-[#050505]`}>
-                <span className="text-[15px] text-[#444]">市場寬度: <span className={C_UP}>上漲:68%</span> / <span className={C_DOWN}>下跌:32%</span></span>
-                <span className="text-[15px] text-[#444]">系統延遲: 12ms</span>
-              </div>
-            </>
+
+              {/* 掃描 tab */}
+              {activeTab === 'scan' && (
+                <div className="flex-1 flex flex-col overflow-hidden">
+                  {isScanning ? (
+                    <div className="flex-1 flex items-center justify-center text-[#555] text-[15px]">掃描中…</div>
+                  ) : scanResults.length === 0 ? (
+                    <div className="flex-1 flex items-center justify-center text-[#555] text-[15px]">今日無訊號</div>
+                  ) : (
+                    <div className="flex-1 overflow-auto">
+                      <table className="w-full text-left border-collapse">
+                        <thead className={`sticky top-0 bg-[#000000] border-b ${C_BORDER} z-10`}>
+                          <tr className="text-[16px] text-[#666] tracking-widest">
+                            <th className="py-2 px-4 font-normal w-[20%]">代號</th>
+                            <th className="py-2 px-4 font-normal w-[20%]">名稱</th>
+                            <th className="py-2 px-4 font-normal w-[20%]">訊號日期</th>
+                            <th className="py-2 px-4 font-normal text-right w-[15%]">天前</th>
+                            <th className="py-2 px-4 font-normal text-center w-[25%]">訊號</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-[#111111]">
+                          {scanResults.map((s) => (
+                            <tr
+                              key={`${s.stock_id}-${s.signal_date}`}
+                              className="hover:bg-[#0A0A0A] cursor-crosshair group transition-colors"
+                              onClick={() => handleSelectScanResult(s)}
+                            >
+                              <td className={`py-3 px-4 text-[17px] ${C_SYS} group-hover:underline`}>{s.stock_id}</td>
+                              <td className="py-3 px-4 text-[17px] text-[#DDD]">{s.stock_name}</td>
+                              <td className="py-3 px-4 text-[16px] text-[#888]">{s.signal_date}</td>
+                              <td className="py-3 px-4 text-[16px] text-right text-[#666]">{s.days_ago}</td>
+                              <td className="py-3 px-4 text-center">
+                                <span className="inline-block px-2 py-0.5 text-[15px] border border-[#00FF66] text-[#00FF66]">
+                                  強力買進
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                  <div className={`px-4 py-2 border-t ${C_BORDER} flex justify-between items-center shrink-0 bg-[#050505]`}>
+                    <span className="text-[15px] text-[#444]">共 {scanResults.length} 筆訊號</span>
+                  </div>
+                </div>
+              )}
+
+              {/* 自選清單 tabs */}
+              {activeTab === 'watch1' && renderWatchlist(1)}
+              {activeTab === 'watch2' && renderWatchlist(2)}
+            </div>
           )}
         </div>
       </main>

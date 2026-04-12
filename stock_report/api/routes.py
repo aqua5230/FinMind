@@ -11,6 +11,7 @@ from pydantic import BaseModel, ConfigDict, model_validator
 from stock_report.api.finmind import FinMindClient
 from stock_report.api.scan import router as scan_router
 from stock_report.config import settings
+from stock_report.data.db import get_latest_price_date
 from stock_report.exceptions import FinMindAPIError, FinMindBaseError, InvalidStockError
 from stock_report.models import StockReport
 from stock_report.services.report_service import ReportService
@@ -67,6 +68,13 @@ class PriceQueryParams(BaseModel):
         return self
 
 
+class DbStatusResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    has_price_data: bool
+    latest_price_date: str | None
+
+
 def _map_price_row(row: dict) -> PriceBar | None:
     try:
         bar = PriceBar(
@@ -88,6 +96,20 @@ def _map_price_row(row: dict) -> PriceBar | None:
 @router.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@router.get("/db-status", response_model=DbStatusResponse)
+def get_db_status() -> DbStatusResponse:
+    try:
+        latest_price_date = get_latest_price_date()
+    except Exception as exc:
+        logger.warning("Failed to query DB status: %s", exc)
+        raise HTTPException(status_code=503, detail="Database status unavailable") from exc
+
+    return DbStatusResponse(
+        has_price_data=latest_price_date is not None,
+        latest_price_date=latest_price_date.isoformat() if latest_price_date is not None else None,
+    )
 
 
 def verify_api_key(x_api_key: str | None = Header(default=None, alias="X-API-Key")) -> None:

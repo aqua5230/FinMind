@@ -39,6 +39,16 @@ def has_price_data() -> bool:
             return bool(row and row[0])
 
 
+def get_latest_price_date() -> date | None:
+    with get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT MAX(date) FROM stock_prices")
+            row = cursor.fetchone()
+            if not row:
+                return None
+            return row[0]
+
+
 def upsert_prices(stock_id: str, prices: Iterable[dict[str, Any]]) -> int:
     values = []
     for price in prices:

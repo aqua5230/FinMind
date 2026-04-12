@@ -18,7 +18,12 @@ export function ScanPanel({ isLoading, results, onSelect }: Props) {
       {isLoading ? (
         <p className="text-base text-[#8E8E93]">掃描中...</p>
       ) : results.length > 0 ? (
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-col gap-2">
+          <p className="text-xs text-[#8E8E93]">
+            訊號條件：RSI &lt; 30 且跌幅 ≥ 20%　｜　T+10 勝率{" "}
+            <span className="font-semibold text-[#00E5FF]">75.8%</span>（n=487）
+          </p>
+          <div className="flex flex-wrap gap-2">
           {results.map((result) => (
             <button
               key={`${result.stock_id}-${result.signal_date}`}
@@ -35,6 +40,7 @@ export function ScanPanel({ isLoading, results, onSelect }: Props) {
               </span>
             </button>
           ))}
+          </div>
         </div>
       ) : (
         <p className="text-base text-[#8E8E93]">今日無符合訊號的股票</p>

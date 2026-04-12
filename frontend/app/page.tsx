@@ -146,6 +146,19 @@ export default function Home() {
     return () => clearInterval(timer);
   }, []);
 
+  useEffect(() => {
+    const preloadScan = async () => {
+      try {
+        const scan = await fetchScan();
+        setScanResults(scan.results);
+      } catch {
+        // Ignore preload failures; clicking scan will retry normally.
+      }
+    };
+
+    preloadScan();
+  }, []);
+
   const loadStock = useCallback(async (
     stockId: string,
     stockName: string,
@@ -174,6 +187,11 @@ export default function Home() {
   }, [cmdInput, loadStock]);
 
   const handleScan = useCallback(async () => {
+    if (scanResults.length > 0) {
+      setIsScanPanelOpen(true);
+      return;
+    }
+
     setIsScanning(true);
     setIsScanPanelOpen(true);
     setError('');
@@ -186,7 +204,7 @@ export default function Home() {
     } finally {
       setIsScanning(false);
     }
-  }, []);
+  }, [scanResults.length]);
 
   const handleSelectScanResult = useCallback(async (result: ScanResult) => {
     try {

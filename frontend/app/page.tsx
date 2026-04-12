@@ -208,21 +208,21 @@ export default function Home() {
           <div className="w-[18px] h-[18px] bg-[#00E5FF] flex items-center justify-center text-black">
             <Terminal size={12} strokeWidth={3} />
           </div>
-          <span className={`text-[12px] font-bold tracking-widest ${C_SYS}`}>量化終端_v2.6</span>
-          <span className="text-[#555] text-[10px]">|</span>
-          <span className="text-[11px] text-[#888] flex items-center">
+          <span className={`text-[15px] font-bold tracking-widest ${C_SYS}`}>量化終端_v2.6</span>
+          <span className="text-[#555] text-[13px]">|</span>
+          <span className="text-[14px] text-[#888] flex items-center">
             <Activity size={10} className="mr-1.5 text-[#00FF66] animate-pulse" />
             系統連線正常
           </span>
         </div>
-        <div className="text-[11px] text-[#888] tracking-widest">{time}</div>
+        <div className="text-[14px] text-[#888] tracking-widest">{time}</div>
       </header>
 
       {/* 搜尋列 */}
       <div className={`flex items-center px-4 h-[48px] shrink-0 border-b ${C_BORDER} bg-[#050505]`}>
         <div className="bg-[#00E5FF]/10 border border-[#00E5FF]/30 px-2 py-0.5 rounded-sm mr-3 flex items-center shrink-0 whitespace-nowrap">
           <Search size={12} className={`mr-1.5 ${C_SYS}`} />
-          <span className={`text-[11px] font-bold ${C_SYS} tracking-widest`}>搜尋</span>
+          <span className={`text-[14px] font-bold ${C_SYS} tracking-widest`}>搜尋</span>
         </div>
         <input
           type="text"
@@ -230,13 +230,13 @@ export default function Home() {
           onChange={(e) => setCmdInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSearch(cmdInput)}
           placeholder="搜尋股票代號..."
-          className="bg-transparent border-none outline-none text-[14px] text-[#00E5FF] w-full min-w-0 flex-1 placeholder-[#444] tracking-widest"
+          className="bg-transparent border-none outline-none text-[17px] text-[#00E5FF] w-full min-w-0 flex-1 placeholder-[#444] tracking-widest"
           autoFocus
         />
         <button
           type="button"
           onClick={() => handleSearch(cmdInput)}
-          className="text-[10px] text-[#666] bg-[#000000] px-2.5 py-1 border border-[#333] rounded-sm flex items-center shrink-0 whitespace-nowrap ml-3 hover:border-[#555] hover:text-[#999] cursor-pointer"
+          className="text-[13px] text-[#666] bg-[#000000] px-2.5 py-1 border border-[#333] rounded-sm flex items-center shrink-0 whitespace-nowrap ml-3 hover:border-[#555] hover:text-[#999] cursor-pointer"
         >
           <span className="text-[#00E5FF] mr-1.5">↵</span> 確認
         </button>
@@ -244,7 +244,7 @@ export default function Home() {
           type="button"
           onClick={handleScan}
           disabled={isScanning}
-          className="text-[10px] text-[#00FF66] bg-[#000000] px-2.5 py-1 border border-[#00FF66]/40 rounded-sm flex items-center shrink-0 whitespace-nowrap ml-2 hover:bg-[#00FF66]/10 disabled:opacity-50 disabled:cursor-wait cursor-pointer"
+          className="text-[13px] text-[#00FF66] bg-[#000000] px-2.5 py-1 border border-[#00FF66]/40 rounded-sm flex items-center shrink-0 whitespace-nowrap ml-2 hover:bg-[#00FF66]/10 disabled:opacity-50 disabled:cursor-wait cursor-pointer"
         >
           {isScanning ? '掃描中...' : '掃描'}
         </button>
@@ -261,7 +261,7 @@ export default function Home() {
 
       {/* 錯誤訊息 */}
       {error && (
-        <div className={`px-4 py-1.5 text-[11px] text-[#FF003C] border-b ${C_BORDER} bg-[#050505]`}>{error}</div>
+        <div className={`px-4 py-1.5 text-[14px] text-[#FF003C] border-b ${C_BORDER} bg-[#050505]`}>{error}</div>
       )}
 
       {/* 主體 */}
@@ -275,11 +275,11 @@ export default function Home() {
               return (
                 <div key={idx.id} className={`p-4 flex flex-col ${i % 2 === 0 ? `border-r ${C_BORDER}` : ''} ${i < 2 ? `border-b ${C_BORDER}` : ''} hover:bg-[#0A0A0A] cursor-crosshair`}>
                   <div className="flex justify-between items-center mb-2">
-                    <span className="text-[10px] text-[#666] tracking-widest">{idx.name}</span>
-                    <span className="text-[10px] text-[#444]">量:{idx.vol}</span>
+                    <span className="text-[13px] text-[#666] tracking-widest">{idx.name}</span>
+                    <span className="text-[13px] text-[#444]">量:{idx.vol}</span>
                   </div>
-                  <div className="text-[24px] text-white font-light tracking-tight mb-2">{idx.price}</div>
-                  <div className={`flex items-center justify-between text-[12px] font-bold ${isUp ? C_UP : C_DOWN}`}>
+                  <div className="text-[28px] text-white font-light tracking-tight mb-2">{idx.price}</div>
+                  <div className={`flex items-center justify-between text-[15px] font-bold ${isUp ? C_UP : C_DOWN}`}>
                     <span>{idx.change}</span>
                     <span>{idx.percent}</span>
                   </div>
@@ -289,14 +289,14 @@ export default function Home() {
           </div>
           <div className="flex-1 flex flex-col overflow-hidden bg-[#020202]">
             <div className={`px-4 py-2 border-b ${C_BORDER} flex justify-between items-center shrink-0 bg-[#080808]`}>
-              <span className="text-[10px] text-[#666] tracking-widest flex items-center">
+              <span className="text-[13px] text-[#666] tracking-widest flex items-center">
                 <Database size={12} className="mr-2" /> 即時事件日誌
               </span>
-              <span className={`text-[10px] ${C_SYS} animate-pulse`}>[接收中]</span>
+              <span className={`text-[13px] ${C_SYS} animate-pulse`}>[接收中]</span>
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-2">
               {SYSTEM_LOGS.map((log, i) => (
-                <div key={i} className="flex space-x-3 text-[11px] leading-tight hover:bg-[#111] p-1 -mx-1">
+                <div key={i} className="flex space-x-3 text-[14px] leading-tight hover:bg-[#111] p-1 -mx-1">
                   <span className="text-[#555] shrink-0">[{log.time}]</span>
                   <span className={`shrink-0 w-8 ${log.level === '警報' ? 'text-[#FF003C]' : log.level === '執行' ? 'text-[#00FF66]' : log.level === '總經' ? 'text-[#FFCC00]' : 'text-[#00E5FF]'}`}>
                     {log.level}
@@ -304,7 +304,7 @@ export default function Home() {
                   <span className="text-[#AAA] break-words">{log.msg}</span>
                 </div>
               ))}
-              <div className="flex space-x-3 text-[11px] leading-tight mt-2">
+              <div className="flex space-x-3 text-[14px] leading-tight mt-2">
                 <span className="text-[#555] shrink-0">[{time.split(' ')[1] ?? '00:00:00.000'}]</span>
                 <span className="w-2 h-3 bg-[#00E5FF] animate-pulse" />
               </div>
@@ -336,15 +336,15 @@ export default function Home() {
           ) : (
             <>
               <div className={`px-4 py-2 border-b ${C_BORDER} flex justify-between items-center shrink-0 bg-[#080808]`}>
-                <span className="text-[10px] text-[#666] tracking-widest flex items-center">
+                <span className="text-[13px] text-[#666] tracking-widest flex items-center">
                   <Crosshair size={12} className="mr-2" /> 活躍標的監控
                 </span>
-                <span className="text-[10px] text-[#444]">列數: 07</span>
+                <span className="text-[13px] text-[#444]">列數: 07</span>
               </div>
               <div className="flex-1 overflow-auto">
                 <table className="w-full text-left border-collapse">
                   <thead className={`sticky top-0 bg-[#000000] border-b ${C_BORDER} z-10`}>
-                    <tr className="text-[11px] text-[#666] tracking-widest">
+                    <tr className="text-[14px] text-[#666] tracking-widest">
                       <th className="py-2 px-4 font-normal w-[15%]">代號</th>
                       <th className="py-2 px-4 font-normal w-[20%]">名稱</th>
                       <th className="py-2 px-4 font-normal text-right w-[15%]">最新價</th>
@@ -362,13 +362,13 @@ export default function Home() {
                           className="hover:bg-[#0A0A0A] cursor-crosshair group transition-colors"
                           onClick={() => handleSearch(s.sym.replace('.TW', ''))}
                         >
-                          <td className={`py-3 px-4 text-[12px] ${C_SYS} group-hover:underline`}>{s.sym}</td>
-                          <td className="py-3 px-4 text-[12px] text-[#DDD]">{s.name}</td>
-                          <td className={`py-3 px-4 text-[13px] font-bold text-right ${isUp ? C_UP : C_DOWN}`}>{s.px}</td>
-                          <td className={`py-3 px-4 text-[12px] text-right ${isUp ? C_UP : C_DOWN}`}>{s.chg}</td>
-                          <td className={`py-3 px-4 text-[12px] text-right ${isUp ? C_UP : C_DOWN}`}>{s.pct}</td>
+                          <td className={`py-3 px-4 text-[15px] ${C_SYS} group-hover:underline`}>{s.sym}</td>
+                          <td className="py-3 px-4 text-[15px] text-[#DDD]">{s.name}</td>
+                          <td className={`py-3 px-4 text-[16px] font-bold text-right ${isUp ? C_UP : C_DOWN}`}>{s.px}</td>
+                          <td className={`py-3 px-4 text-[15px] text-right ${isUp ? C_UP : C_DOWN}`}>{s.chg}</td>
+                          <td className={`py-3 px-4 text-[15px] text-right ${isUp ? C_UP : C_DOWN}`}>{s.pct}</td>
                           <td className="py-3 px-4 text-center">
-                            <span className={`inline-block px-2 py-0.5 text-[10px] border ${
+                            <span className={`inline-block px-2 py-0.5 text-[13px] border ${
                               s.signal === '強力買進' || s.signal === '亮燈漲停' ? 'border-[#00FF66] text-[#00FF66]' :
                               s.signal === '超買過熱' ? 'border-[#FF003C] text-[#FF003C]' :
                               s.signal === '動能強勢' ? 'border-[#FFCC00] text-[#FFCC00]' :
@@ -384,8 +384,8 @@ export default function Home() {
                 </table>
               </div>
               <div className={`px-4 py-2 border-t ${C_BORDER} flex justify-between items-center shrink-0 bg-[#050505]`}>
-                <span className="text-[10px] text-[#444]">市場寬度: <span className={C_UP}>上漲:68%</span> / <span className={C_DOWN}>下跌:32%</span></span>
-                <span className="text-[10px] text-[#444]">系統延遲: 12ms</span>
+                <span className="text-[13px] text-[#444]">市場寬度: <span className={C_UP}>上漲:68%</span> / <span className={C_DOWN}>下跌:32%</span></span>
+                <span className="text-[13px] text-[#444]">系統延遲: 12ms</span>
               </div>
             </>
           )}

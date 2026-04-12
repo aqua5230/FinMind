@@ -1,6 +1,6 @@
 # SESSION.md — FinMind 專案狀態
 
-更新時間：2026-04-12
+更新時間：2026-04-12（session 2）
 
 ---
 
@@ -89,10 +89,18 @@ FinMind/
 | requirements.txt | 移除 esun_trade/esun_marketdata（Railway 找不到），加 psycopg2-binary/apscheduler |
 | 掃描預載 | page.tsx 頁面載入時背景 fetch，點按鈕瞬間顯示 |
 
+### 2026-04-12 session 2 完成（已全部部署）
+| 項目 | 說明 |
+|------|------|
+| 掃描穩定性強化 | db.py 加 get_latest_price_date()；main.py 改用 _should_run_initial_sync()，考慮台北時區+週末+16:30，資料過期才觸發同步 |
+| /api/db-status 端點 | routes.py 新增，回傳 has_price_data + latest_price_date，DB 掛掉回 503 |
+| 新分頁配色統一 | StockInfoBar / KLinePanel / PillButton 全面換成終端機風格（#050505 底、#222222 邊框、cyan #00E5FF、neon green/red 漲跌色）|
+
 ### 待處理（下個 session）
 | 項目 | 優先度 | 說明 |
 |------|--------|------|
-| 驗證掃描穩定性 | HIGH | 後端重啟後確認 DB 有資料、連打掃描結果一致 |
+| T+10 勝率顯示在掃描 UI | MED | 把 75.8% 顯示在掃描結果旁，增加信心度 |
+| 訊號記錄系統 | MED | 進場日/股票/價格 → T+10 追蹤，驗證策略持續有效性 |
 | 申請玉山正式 API 金鑰 | MED | esun_trade 只能本地用，Railway 上需另外處理 |
 
 ---

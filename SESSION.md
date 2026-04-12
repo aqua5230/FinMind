@@ -62,6 +62,7 @@ FinMind/
 | StockInfoBar 視覺強化 | ✅ 完成 + 部署 | 現價 text-4xl，漲跌幅改色塊 badge |
 | RSI 算法修正 | ✅ 完成 + 部署 | 改 Wilder's EMA，與後端 scan.py 同步，訊號箭頭可正確顯示 |
 | 全面 bug 修復（2026-04-12）| ✅ 完成 + 部署 | 見下方清單 |
+| cursor-crosshair → cursor-pointer | ✅ 完成 + 部署 | 監控列表/大盤指數/掃描結果，2026-04-12 |
 
 ### 2026-04-12 修復清單（已全部部署）
 | 項目 | 說明 |

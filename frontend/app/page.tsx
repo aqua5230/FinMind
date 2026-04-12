@@ -383,6 +383,9 @@ export default function Home() {
               )}
               <div className={`px-4 py-2 border-t ${C_BORDER} flex justify-between items-center shrink-0 bg-[#050505]`}>
                 <span className="text-[15px] text-[#444]">共 {scanResults.length} 筆訊號</span>
+                <span className="text-[15px] text-[#666]">
+                  訊號條件：RSI &lt; 30 且跌幅 ≥ 20% ｜ T+10 勝率 <span className="text-[#00E5FF]">75.8%</span>（n=487）
+                </span>
               </div>
             </div>
           )}

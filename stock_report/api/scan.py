@@ -12,6 +12,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel, ConfigDict
 import yfinance as yf
 
+from stock_report.data import db
 from stock_report.api.finmind import FinMindClient
 from stock_report.data.tw_stocks import TW_STOCK_IDS
 
@@ -165,6 +166,14 @@ def _get_stock_names() -> dict[str, str]:
 
 
 def _fetch_stock_prices(stock_id: str, start_date: str, end_date: str) -> list[dict[str, Any]]:
+    try:
+        rows = db.query_prices(stock_id, start_date, end_date)
+    except Exception as exc:
+        logger.warning("Failed to query DB prices for stock_id=%s: %s", stock_id, exc)
+    else:
+        if rows:
+            return rows
+
     for suffix in (".TW", ".TWO"):
         ticker = f"{stock_id}{suffix}"
         try:

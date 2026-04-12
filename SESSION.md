@@ -96,32 +96,17 @@ FinMind/
 | /api/db-status 端點 | routes.py 新增，回傳 has_price_data + latest_price_date，DB 掛掉回 503 |
 | 新分頁配色統一 | StockInfoBar / KLinePanel / PillButton 全面換成終端機風格（#050505 底、#222222 邊框、cyan #00E5FF、neon green/red 漲跌色）|
 
-### 2026-04-12 session 3（進行中：Railway 部署快取問題）
+### 2026-04-12 session 3（✅ 完成並部署）
 | 項目 | 狀態 | 說明 |
 |------|------|------|
-| T+10 勝率 badge 改動 | ✅ code 完成 | ScanPanel 加說明行 75.8%（n=487），commit `0c62460` |
-| Railway 部署驗證 | ⚠️ 疑似沒部署到 | 線上 page chunk `page-12019b3ead1da7c2.js` 連續 6 次 deploy 都不變，bundle 內找不到 T+10/n=487/勝率字串 |
-| deploy.sh 修復 | ✅ | 延長等待 90s、移除 grep 中斷，commit `20f3f15` |
-| webpack cache → memory | ✅ code 完成 | next.config.ts 改 `cache: { type: 'memory' }`，commit `fe75d1f` |
-| v2.6 → v2.7 驗證測試 | 🔄 部署中 | 如果 HTML 標題沒變 → Railway 根本沒部署新 code；有變 → ScanPanel 變更是 tree-shake 問題 |
+| T+10 勝率 badge | ✅ 完成 + 部署 | page.tsx line 387 加說明行 `T+10 勝率 75.8%（n=487）`，75.8% 用 cyan 強調 |
+| 根因：ScanPanel 是孤兒元件 | ✅ 已診斷 | 原本 badge 加在 `ScanPanel.tsx` 但全專案無人 import，page.tsx 自己 inline 渲染 scanResults；改到 page.tsx 真正渲染處才生效 |
+| deploy.sh 修復 | ✅ | 延長等待 90s、移除 grep 中斷 |
+| Railway 部署機制 | ✅ 驗證正常 | v2.6→v2.7 測試證明 chunk hash 會變，非快取問題；本次 `page-2432a986c46555de.js` 已含 75.8/n=487/勝率 |
 
-### 診斷結論（2026-04-12）
-- 本地 `npm run build` 產出 `page-1f504eb10d09f06a.js`，內含「訊號條件/T+10/n=487」
-- Railway 產出 `page-12019b3ead1da7c2.js`，只含「訊號」「掃描」（fallback branch），**沒有新 badge 字串**
-- Railway 每次 build log 顯示 `✓ Compiled successfully`，Docker image digest 也有變
-- 但 Next.js chunk hash 從未改變 → 懷疑 source 沒被真正 build，或有 Railpack 層級的 content cache
-
-### 已嘗試失敗的方案
-1. `NIXPACKS_NO_CACHE=true` env var（早就有，無效）
-2. `NEXT_PRIVATE_DISABLE_CACHE=1` env var
-3. `BUILD_CACHE_BUST` env var + `next.config.ts` webpack version 機制
-4. bump `package.json` 版本 0.3.0 → 0.3.1
-5. `next.config.ts` webpack `cache: { type: 'memory' }`
-6. `rm -rf .next/cache` build command（volume busy 失敗）
-
-### 下一步（v2.7 部署後決策）
-- **v2.7 HTML 有更新** → 部署機制正常，ScanPanel 改動被 tree-shake 或沒進 page chunk，需查實際 chunk 結構
-- **v2.7 HTML 沒更新** → Railway 根本沒 build 新 commit，需手動到 dashboard 清 build cache 或重建 service
+### 教訓
+- 改 UI 前先確認元件有被 import — 用 `grep -n "ComponentName"` 全專案搜，沒有就是孤兒
+- Railway 部署沒「卡快取」，是 source 改錯地方 — 之前耗費整個 session 排查假問題
 
 ### 待處理（session 3 之後）
 | 項目 | 優先度 | 說明 |

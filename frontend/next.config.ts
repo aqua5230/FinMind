@@ -19,7 +19,7 @@ const nextConfig: NextConfig = {
   generateBuildId: async () => `build-${Date.now()}`,
   webpack: (config) => {
     if (config.cache && typeof config.cache === "object") {
-      (config.cache as Record<string, unknown>).version = process.env.BUILD_CACHE_BUST ?? String(Date.now());
+      config.cache = { type: "memory" as const };
     }
     return config;
   },

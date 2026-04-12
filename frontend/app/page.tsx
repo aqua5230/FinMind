@@ -195,7 +195,7 @@ export default function Home() {
               <tbody className="divide-y divide-[#111111]">
                 {list.map((w) => (
                   <tr key={w.stock_id}
-                    className="hover:bg-[#0A0A0A] cursor-crosshair group transition-colors"
+                    className="hover:bg-[#0A0A0A] cursor-pointer group transition-colors"
                     onClick={() => openStock(w.stock_id, w.stock_name)}
                   >
                     <td className={`py-3 px-4 text-[17px] ${C_SYS} group-hover:underline`}>{w.stock_id}</td>
@@ -290,7 +290,7 @@ export default function Home() {
             {MACRO_INDICES.map((idx, i) => {
               const isUp = idx.change.startsWith('+');
               return (
-                <div key={idx.id} className={`p-4 flex flex-col ${i % 2 === 0 ? `border-r ${C_BORDER}` : ''} ${i < 2 ? `border-b ${C_BORDER}` : ''} hover:bg-[#0A0A0A] cursor-crosshair`}>
+                <div key={idx.id} className={`p-4 flex flex-col ${i % 2 === 0 ? `border-r ${C_BORDER}` : ''} ${i < 2 ? `border-b ${C_BORDER}` : ''} hover:bg-[#0A0A0A] cursor-pointer`}>
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-[15px] text-[#666] tracking-widest">{idx.name}</span>
                     <span className="text-[15px] text-[#444]">量:{idx.vol}</span>
@@ -363,7 +363,7 @@ export default function Home() {
                     <tbody className="divide-y divide-[#111111]">
                       {scanResults.map((s) => (
                         <tr key={`${s.stock_id}-${s.signal_date}`}
-                          className="hover:bg-[#0A0A0A] cursor-crosshair group transition-colors"
+                          className="hover:bg-[#0A0A0A] cursor-pointer group transition-colors"
                           onClick={() => openStock(s.stock_id, s.stock_name, { signal: s.signal_date, indicators: 'BOLL,MACD,RSI' })}
                         >
                           <td className={`py-3 px-4 text-[17px] ${C_SYS} group-hover:underline`}>{s.stock_id}</td>

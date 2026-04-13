@@ -9,6 +9,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from stock_report.api.routes import router
+from stock_report.api.ws import ws_router
 from stock_report.data.db import (
     get_latest_price_date,
     get_pending_signals,
@@ -147,6 +148,7 @@ app.add_middleware(
 )
 
 app.include_router(router)
+app.include_router(ws_router)
 
 
 @app.get("/")

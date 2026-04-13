@@ -8,11 +8,19 @@ import {
 } from "@/components/chart/CandlestickChart";
 import { KLinePanel } from "@/components/chart/KLinePanel";
 import { StockInfoBar } from "@/components/layout/StockInfoBar";
-import { fetchLatestPrice, fetchRealtimeBar } from "@/lib/api";
+import { API_URL, fetchLatestPrice } from "@/lib/api";
 import type { LatestPrice } from "@/lib/types";
 
 const C_SYS = 'text-[#00E5FF]';
 const C_BORDER = 'border-[#222222]';
+const MAX_RECONNECT_ATTEMPTS = 3;
+const RECONNECT_DELAY_MS = 3_000;
+
+type RealtimeTrade = {
+  price?: number;
+  size?: number;
+  time?: string | null;
+};
 
 function formatDate(date: Date): string {
   return date.toISOString().slice(0, 10);
@@ -39,6 +47,11 @@ function isTwTradingHours(date = new Date()): boolean {
   const minutes = hour * 60 + minute;
 
   return minutes >= 9 * 60 && minutes <= 14 * 60;
+}
+
+function getRealtimeWsUrl(stockId: string): string {
+  const baseUrl = API_URL || (typeof window === 'undefined' ? '' : window.location.origin);
+  return `${baseUrl.replace(/^http/, 'ws')}/ws/realtime/${encodeURIComponent(stockId)}`;
 }
 
 function StockPageContent() {
@@ -77,27 +90,54 @@ function StockPageContent() {
     const prevCloseValue = prevClose?.stockId === stockId ? prevClose.value : null;
     if (!stockId || prevCloseValue === null || !isTwTradingHours()) return;
 
-    let cancelled = false;
+    let socket: WebSocket | null = null;
+    let reconnectTimer: number | null = null;
+    let reconnectAttempts = 0;
+    let closed = false;
 
-    const updateRealtimePrice = async () => {
-      if (!isTwTradingHours()) return;
+    const connect = () => {
+      if (closed || !isTwTradingHours()) return;
 
-      const realtimeBar = await fetchRealtimeBar(stockId);
-      if (cancelled || !realtimeBar) return;
+      socket = new WebSocket(getRealtimeWsUrl(stockId));
 
-      const realtimeClose = realtimeBar.close;
-      const change = realtimeClose - prevCloseValue;
-      const changePct = prevCloseValue === 0 ? 0 : (change / prevCloseValue) * 100;
+      socket.onopen = () => {
+        reconnectAttempts = 0;
+      };
 
-      setLatestPrice({ close: realtimeClose, change, changePct });
+      socket.onmessage = (event) => {
+        let trade: RealtimeTrade;
+        try {
+          trade = JSON.parse(event.data) as RealtimeTrade;
+        } catch {
+          return;
+        }
+
+        if (typeof trade.price !== 'number') return;
+
+        const change = trade.price - prevCloseValue;
+        const changePct = prevCloseValue === 0 ? 0 : (change / prevCloseValue) * 100;
+        setLatestPrice({ close: trade.price, change, changePct });
+      };
+
+      socket.onclose = () => {
+        if (closed || !isTwTradingHours() || reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) return;
+        reconnectAttempts += 1;
+        reconnectTimer = window.setTimeout(connect, RECONNECT_DELAY_MS);
+      };
+
+      socket.onerror = () => {
+        socket?.close();
+      };
     };
 
-    updateRealtimePrice();
-    const intervalId = window.setInterval(updateRealtimePrice, 30_000);
+    connect();
 
     return () => {
-      cancelled = true;
-      window.clearInterval(intervalId);
+      closed = true;
+      if (reconnectTimer !== null) {
+        window.clearTimeout(reconnectTimer);
+      }
+      socket?.close();
     };
   }, [stockId, prevClose]);
 

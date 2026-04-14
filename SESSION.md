@@ -304,11 +304,66 @@ python3 backtest_v2.py
 
 | 優先度 | 項目 | 說明 |
 |--------|------|------|
-| **HIGH** | 移除前端「T+10 勝率 75.8%」badge | 誤導性指標，應移除或改為真實數字 |
-| **HIGH** | Paper trading 驗證 | 策略正式上線前需 3-6 個月模擬追蹤 |
-| **MED** | 月營收策略整合至掃描器 | 每月 11 日自動推播月營收前 20% 名單 |
-| **MED** | 策略穩健性測試 | 2025 AI 多頭影響有多大？嘗試排除電子股後重測 |
+| **HIGH** | 掃描器換成月營收動能 | 分三步（見下方詳細任務） |
+| **MED** | Paper trading 驗證 | 每月 11 日記錄名單，追蹤 3-6 個月實際表現 |
+| **MED** | 策略穩健性測試 | 排除電子股後重測，確認非純 AI 多頭效應 |
 | **LOW** | 當沖策略研究 | 月營收策略穩定後再考慮 |
+
+---
+
+## 下個 session 任務：掃描器換成月營收動能
+
+### 背景
+- 現有掃描：RSI < 30 + 跌幅 ≥ 20%（已證實年化 -8.20%，廢棄）
+- 目標掃描：月營收 YoY 前 20%（Test Sharpe 1.74，年化 29.1%）
+- 本地已有 revenue_cache（1928 支 parquet），Railway DB 目前無月營收資料
+
+### Step 1 — DB 加月營收表 + 匯入資料
+**改 `stock_report/data/db.py`：**
+新增 `stock_revenue_monthly` 表：
+```sql
+CREATE TABLE IF NOT EXISTS stock_revenue_monthly (
+  stock_id TEXT,
+  revenue_month TEXT,  -- 格式 YYYYMM
+  revenue BIGINT,      -- 千元
+  updated_at TIMESTAMP DEFAULT NOW(),
+  PRIMARY KEY (stock_id, revenue_month)
+)
+```
+新增函數：
+- `upsert_revenue(stock_id, revenue_month, revenue)`
+- `query_revenue(stock_id, months=24)` → list of {revenue_month, revenue}
+- `query_revenue_latest_yoy()` → 所有股票最新月份的 YoY（bulk query，供掃描用）
+
+**新增 `scripts/import_revenue_to_db.py`：**
+- 讀 `data/revenue_cache/*.parquet`
+- 批次 upsert 進 Railway PostgreSQL
+- 需要 `DATABASE_URL` 環境變數（從 `.env` 讀）
+- 印進度，可重跑（upsert 幂等）
+
+### Step 2 — scan.py 換成月營收動能
+**改 `stock_report/api/scan.py`：**
+- 新 endpoint `GET /api/revenue-scan`（或直接取代 `/api/scan`）
+- 邏輯：
+  1. 查 DB 取所有股票最近 13 個月營收
+  2. 計算 `RevenueYoY = 當月 / 去年同月 - 1`
+  3. 流動性濾網：排除近 20 日日均成交額 < 500 萬的股票（從 price DB 查）
+  4. 按 YoY 排名，取前 20%
+  5. 加 TWII 200MA 濾網（可選，若大盤空頭則回傳空結果或警示）
+- Response model 新增 `revenue_yoy: float`，移除 `signal_date / days_ago`
+- TTL cache 改為 24 小時（月營收每月一次，不需要 10 分鐘刷新）
+
+### Step 3 — 前端顯示更新
+**改 `frontend/app/page.tsx`：**
+- 掃描結果改顯示：股票代號、名稱、YoY（格式 `+12.3%`）、排名
+- 移除 `days_ago` 欄位
+- 訊號條件文字改為：`月營收動能｜YoY 前 20%｜大盤 200MA 以上`
+
+### 注意事項
+- `scripts/` 在 `.gitignore`，import 腳本本地跑即可，不需部署
+- Railway 需設 `FINMIND_TOKEN` 環境變數（已設）
+- 每月 11 日後需手動或自動重跑 `fetch_revenue.py` + `import_revenue_to_db.py` 更新資料
+- 禁止改 `CandlestickChart.tsx`、`KLinePanel.tsx`
 
 ### 核心教訓
 

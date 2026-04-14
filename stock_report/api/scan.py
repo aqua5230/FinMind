@@ -346,7 +346,8 @@ def _run_revenue_scan() -> RevenueScanResponse:
             results=[],
         )
 
-    positive = [r for r in yoy_rows if r["yoy"] > 0]
+    # 過濾：YoY 在合理範圍（0 ~ 10x = +1000%），排除異常極值
+    positive = [r for r in yoy_rows if 0 < r["yoy"] <= 10.0]
     positive.sort(key=lambda x: x["yoy"], reverse=True)
     top20_count = max(1, len(positive) // 5)
     candidates = positive[:top20_count]
@@ -360,7 +361,13 @@ def _run_revenue_scan() -> RevenueScanResponse:
 
     liquid = [r for r in candidates if turnover_map.get(r["stock_id"], 0) >= MIN_TURNOVER]
 
+    # 股票名稱：優先從快取取，若空則同步呼叫一次
     names: dict[str, str] = _stock_name_cache.get("stock_names") or {}
+    if not names:
+        try:
+            names = _get_stock_names()
+        except Exception:
+            names = {}
 
     results = []
     for rank, r in enumerate(liquid, start=1):

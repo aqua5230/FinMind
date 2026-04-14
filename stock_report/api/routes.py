@@ -11,7 +11,7 @@ from pydantic import BaseModel, ConfigDict, model_validator
 from stock_report.api.finmind import FinMindClient
 from stock_report.api.scan import router as scan_router
 from stock_report.config import settings
-from stock_report.data.db import get_all_signals, get_latest_price_date, get_signal_stats
+from stock_report.data.db import get_all_signals, get_latest_price_date, get_signal_stats, upsert_revenue
 from stock_report.exceptions import FinMindAPIError, FinMindBaseError, InvalidStockError
 from stock_report.models import StockReport
 from stock_report.services.report_service import ReportService
@@ -311,6 +311,32 @@ def _generate_report(
 
 def _is_quota_error(exc: FinMindAPIError) -> bool:
     return exc.status_code == 402 or "quota" in exc.msg.lower()
+
+
+class RevenueRecord(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    stock_id: str
+    revenue_ym: str
+    revenue: int
+
+
+class LoadRevenueRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    records: list[RevenueRecord]
+
+
+@router.post("/admin/load-revenue")
+def admin_load_revenue(
+    body: LoadRevenueRequest,
+    _: None = Depends(verify_api_key),
+) -> dict:
+    records = [r.model_dump() for r in body.records]
+    try:
+        n = upsert_revenue(records)
+    except Exception as exc:
+        logger.warning("Failed to upsert revenue: %s", exc)
+        raise HTTPException(status_code=503, detail=f"DB error: {exc}") from exc
+    return {"upserted": n}
 
 
 @router.get("/stocks")

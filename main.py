@@ -18,6 +18,7 @@ from stock_report.data.db import (
     resolve_signal,
 )
 from stock_report.data.price_sync import sync_all_prices
+from stock_report.data.revenue_sync import sync_latest_revenue
 
 
 logger = logging.getLogger(__name__)
@@ -115,6 +116,15 @@ async def lifespan(app: FastAPI):
             _resolve_pending_signals,
             CronTrigger(hour=9, minute=0, timezone="UTC"),
             id="resolve_pending_signals",
+            replace_existing=True,
+            max_instances=1,
+            coalesce=True,
+        )
+        # 每月 12 日 02:00 UTC（= 台北 10:00）自動同步上月月營收
+        created_scheduler.add_job(
+            sync_latest_revenue,
+            CronTrigger(day=12, hour=2, minute=0, timezone="UTC"),
+            id="sync_monthly_revenue",
             replace_existing=True,
             max_instances=1,
             coalesce=True,

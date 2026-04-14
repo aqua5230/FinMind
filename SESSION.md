@@ -1,6 +1,6 @@
 # SESSION.md — FinMind 專案狀態
 
-更新時間：2026-04-14（session 8 — 月營收動能策略回測完成）
+更新時間：2026-04-14（session 9 — 掃描器換成月營收動能，完成部署）
 
 ---
 
@@ -311,12 +311,37 @@ python3 backtest_v2.py
 
 ---
 
-## 下個 session 任務：掃描器換成月營收動能
+## Session 9 已完成：掃描器換成月營收動能（✅ 部署完畢）
+
+### 完成清單
+| 項目 | 狀態 | 備注 |
+|------|------|------|
+| db.py 月營收表 + 函數 | ✅ 部署 | stock_revenue_monthly, upsert_revenue, query_revenue_yoy_bulk, query_stock_avg_turnover |
+| scan.py /revenue-scan endpoint | ✅ 部署 | YoY≤10倍過濾，大盤200MA，流動性≥500萬，名稱自動 fetch |
+| routes.py /admin/load-revenue | ✅ 部署 | 本地 HTTP 推送月營收用 |
+| frontend api.ts | ✅ 部署 | RevenueScanResult / fetchRevenueScan |
+| frontend page.tsx | ✅ 部署 | 掃描tab改顯示YoY/排名，移除days_ago |
+| 月營收資料匯入 | ✅ 完成 | 1928支×~88筆 = 169,689筆，HTTP POST推送至Railway DB |
+| 生產驗證 | ✅ | market_filter=pass, 78支結果，top: 國光生+537.9%、南亞科+364.9%、緯創+194.6% |
+
+### 注意事項
+- 每月 11 日後需執行：`python3 /tmp/push_revenue_to_api.py`（從本地 revenue_cache 更新 DB）
+- 若要重抓新月份資料：先跑 `python3 scripts/fetch_revenue.py` 更新 parquet，再推送
+- YoY 上限設 10x（+1000%）過濾異常極值
+- /api/scan（舊RSI策略）仍保留但前端已不使用
+
+## 下個 session 優先任務
+
+---
+
+## 舊的下個 session 任務（已完成）：掃描器換成月營收動能
 
 ### 背景
 - 現有掃描：RSI < 30 + 跌幅 ≥ 20%（已證實年化 -8.20%，廢棄）
 - 目標掃描：月營收 YoY 前 20%（Test Sharpe 1.74，年化 29.1%）
 - 本地已有 revenue_cache（1928 支 parquet），Railway DB 目前無月營收資料
+
+### ↓ 以下為舊任務書，已執行完畢 ↓
 
 ### Step 1 — DB 加月營收表 + 匯入資料
 **改 `stock_report/data/db.py`：**

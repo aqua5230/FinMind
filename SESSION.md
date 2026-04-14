@@ -509,7 +509,49 @@ cd /Users/lollapalooza/Desktop/FinMind && cat /tmp/pair_scan_task.md | codex -a 
 
 ---
 
+## Session 12 完成內容（2026-04-15）
+
+### 雙刀配對掃描（✅ 完成部署）
+
+| 項目 | 狀態 | 說明 |
+|------|------|------|
+| `stock_report/api/pair_scan.py` | ✅ 部署 | 90天相關係數≥0.75，z-score偏差，TTL 1hr快取，TOP_N=30 |
+| `stock_report/data/db.py` | ✅ 部署 | 新增 `query_prices_bulk_recent(days=130)` |
+| `main.py` | ✅ 部署 | include_router(pair_scan.router) |
+| `frontend/lib/api.ts` | ✅ 部署 | PairScanResult / PairScanResponse / fetchPairScan |
+| `frontend/app/page.tsx` | ✅ 部署 | 第四 tab「雙刀掃描」，刷新按鈕，點股票用 openStock |
+| 偏差率公式修正 | ✅ Claude review | Codex 用 cumsum 錯誤，修正為 z-score = (recent_mean - hist_mean) / hist_std |
+
+### 掃描 UI 統一（✅ 完成部署）
+
+| 項目 | 說明 |
+|------|------|
+| Header「掃描」按鈕 | ✅ 移除 |
+| 策略掃描 tab 加「刷新」按鈕 | ✅ 同雙刀掃描樣式，含更新時間顯示 |
+| handleScan 移除 guard | ✅ 原本有 `if (results.length > 0) return` 導致無法手動刷新，已移除 |
+
+### Codex 呼叫問題修正
+
+- **根因**：任務書「停損條件」有 3 個 STOP 觸發點，Codex 照格式執行就中途問問題
+- **修正**：任務書移除 STOP 區塊，改為「遇到問題自行判斷繼續」
+- **正確指令**：`cat task.md | codex exec --full-auto -`（不是 `codex -a auto-edit -q`）
+
+### 後端 URL 備忘
+
+- 後端正確 URL：`https://finmind-production-23fd.up.railway.app`（不是 finmind-production）
+- 前端 URL：`https://frontend-production-8b27.up.railway.app`
+
+---
+
 ## 下個 session 優先任務
+
+| 優先度 | 項目 | 說明 |
+|--------|------|------|
+| **HIGH** | 雙刀回測 `backtest_pairs.py` | 驗證配對策略有沒有用，Sharpe>0.5 / MaxDD<20% / 勝率>45% 才上線 |
+| **MED** | 處置股追蹤 | TWSE 公開 API + price_cache 算聽牌條件，新 tab 或 badge |
+| **MED** | 法人籌碼掃描 | FinMind TaiwanStockInstitutionalInvestorsBuySell，外資連續淨買超 |
+| **LOW** | 籌碼好掃描增強 | 量比>2、漲幅>5%、主力三週期全正 |
+| **LOW** | 可轉債監控 | 爬 MOPS，距賣回<6個月+有擔保+折價 |
 
 ---
 

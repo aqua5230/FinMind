@@ -323,12 +323,14 @@ python3 backtest_v2.py
 | frontend page.tsx | ✅ 部署 | 掃描tab改顯示YoY/排名，移除days_ago |
 | 月營收資料匯入 | ✅ 完成 | 1928支×~88筆 = 169,689筆，HTTP POST推送至Railway DB |
 | 生產驗證 | ✅ | market_filter=pass, 78支結果，top: 國光生+537.9%、南亞科+364.9%、緯創+194.6% |
+| 月營收自動更新 | ✅ 部署 | APScheduler 每月 12 日 10:00 台北自動同步，斷點續跑 |
 
 ### 注意事項
-- 每月 11 日後需執行：`python3 /tmp/push_revenue_to_api.py`（從本地 revenue_cache 更新 DB）
-- 若要重抓新月份資料：先跑 `python3 scripts/fetch_revenue.py` 更新 parquet，再推送
+- **自動更新**：每月 12 日 10:00 台北時間後端會自動同步上月月營收（無需手動）
+- 若要手動補資料或緊急更新：`python3 /tmp/push_revenue_to_api.py`
 - YoY 上限設 10x（+1000%）過濾異常極值
 - /api/scan（舊RSI策略）仍保留但前端已不使用
+- 自動更新進度會寫入後端 log（Railway → Logs）
 
 ## 下個 session 優先任務
 

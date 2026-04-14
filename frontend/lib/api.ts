@@ -87,7 +87,40 @@ export async function fetchStockName(stockId: string): Promise<string> {
   return match?.name ?? stockId;
 }
 
+function isTwTradingHours(): boolean {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Taipei',
+    weekday: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  })
+    .formatToParts(new Date())
+    .reduce<Record<string, string>>((acc, p) => { acc[p.type] = p.value; return acc; }, {});
+  if (parts.weekday === 'Sat' || parts.weekday === 'Sun') return false;
+  const minutes = Number(parts.hour) * 60 + Number(parts.minute);
+  return minutes >= 9 * 60 && minutes <= 14 * 60;
+}
+
 export async function fetchLatestPrice(stockId: string): Promise<LatestPrice | null> {
+  // 盤中：用 TWSE 即時 API，取得當下成交價與昨收
+  if (isTwTradingHours()) {
+    try {
+      const rt = await apiFetch<{
+        close: number;
+        prev_close: number | null;
+      }>(`/api/realtime/${encodeURIComponent(stockId)}`);
+      if (rt.prev_close != null && rt.prev_close > 0) {
+        const change = rt.close - rt.prev_close;
+        const changePct = (change / rt.prev_close) * 100;
+        return { close: rt.close, change, changePct };
+      }
+    } catch {
+      // fallback to historical below
+    }
+  }
+
+  // 盤後或即時抓取失敗：用歷史 K 線
   const endDate = new Date().toISOString().slice(0, 10);
   const startDate = new Date(Date.now() - 5 * 86400000).toISOString().slice(0, 10);
   try {

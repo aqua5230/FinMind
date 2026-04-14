@@ -250,6 +250,7 @@ def get_realtime_price(stock_id: str) -> dict:
             l = item.get("l", "-")
             v = item.get("v", "-")
             d = item.get("d", "-")
+            y = item.get("y", "-")
             if "-" in (z, o, h, l, v, d):
                 continue
             date_str = f"{d[:4]}-{d[4:6]}-{d[6:]}"
@@ -261,6 +262,7 @@ def get_realtime_price(stock_id: str) -> dict:
                 "low": float(l),
                 "close": float(z),
                 "volume": int(float(v) * 1000),
+                "prev_close": float(y) if y != "-" else None,
             }
             _realtime_cache[stock_id] = bar
             _market_cache[stock_id] = market

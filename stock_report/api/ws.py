@@ -115,6 +115,22 @@ async def realtime_websocket(websocket: WebSocket, stock_id: str) -> None:
     try:
         fugle_ws = await websockets.connect(FUGLE_WS_URL)
         await fugle_ws.send(json.dumps({"event": "auth", "data": {"apikey": api_key}}))
+
+        # 等待 auth 回應，確認驗證成功後再送 subscribe
+        async for raw in fugle_ws:
+            if not isinstance(raw, str):
+                continue
+            try:
+                resp = json.loads(raw)
+            except json.JSONDecodeError:
+                continue
+            event = resp.get("event", "")
+            if event in ("authenticated", "auth"):
+                break
+            if event == "error":
+                raise Exception(f"Fugle auth failed: {resp.get('data')}")
+            # 其他控制訊息繼續等
+
         await fugle_ws.send(
             json.dumps({"event": "subscribe", "data": {"channel": "trades", "symbol": stock_id}})
         )

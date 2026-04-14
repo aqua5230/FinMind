@@ -1,7 +1,17 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { API_URL as API_BASE, fetchScan, fetchRevenueScan, resolveStockId, type ScanResult, type RevenueScanResult } from "@/lib/api";
+import {
+  API_URL as API_BASE,
+  fetchPairScan,
+  fetchScan,
+  fetchRevenueScan,
+  resolveStockId,
+  type PairScanResponse,
+  type PairScanResult,
+  type ScanResult,
+  type RevenueScanResult,
+} from "@/lib/api";
 
 const MACRO_INDICES = [
   { id: 'IDX.TAIEX',   name: '加權指數', price: '35,417.83', change: '+556.67', percent: '+1.60%', vol: '8295 億', trend: [35000, 35100, 35050, 35200, 35350, 35417] },
@@ -28,7 +38,7 @@ const LOG_COLORS: Record<string, { text: string; bg: string }> = {
 };
 
 type WatchItem  = { stock_id: string; stock_name: string };
-type ActiveTab  = 'scan' | 'watch1' | 'watch2';
+type ActiveTab  = 'scan' | 'watch1' | 'watch2' | 'pair';
 type SignalStats = { total: number; resolved: number; pending: number; wins: number; win_rate_pct: number };
 type IconProps   = { size?: number; className?: string; strokeWidth?: number };
 
@@ -76,6 +86,9 @@ export default function Home() {
   const [scanResults,         setScanResults]         = useState<ScanResult[]>([]);
   const [revenueScanResults,  setRevenueScanResults]  = useState<RevenueScanResult[]>([]);
   const [revenueScanMarket,   setRevenueScanMarket]   = useState<string>('unknown');
+  const [pairResults,         setPairResults]         = useState<PairScanResult[]>([]);
+  const [isPairScanning,      setIsPairScanning]      = useState(false);
+  const [pairComputedAt,      setPairComputedAt]      = useState<string>('');
   const [signalStats,         setSignalStats]         = useState<SignalStats | null>(null);
   const [activeTab,           setActiveTab]           = useState<ActiveTab>('scan');
   const [watch1,              setWatch1]              = useState<WatchItem[]>([]);
@@ -140,6 +153,19 @@ export default function Home() {
       setIsScanning(false);
     }
   }, [revenueScanResults.length]);
+
+  const handlePairScan = useCallback(async () => {
+    setIsPairScanning(true);
+    try {
+      const r: PairScanResponse = await fetchPairScan();
+      setPairResults(r.pairs);
+      setPairComputedAt(r.computed_at);
+    } catch {
+      setPairResults([]);
+    } finally {
+      setIsPairScanning(false);
+    }
+  }, []);
 
   const handleAddWatch = useCallback(async (which: 1 | 2) => {
     const input   = (which === 1 ? wlInput1 : wlInput2).trim();
@@ -380,7 +406,7 @@ export default function Home() {
           {/* Tab bar */}
           <div className="p-1.5 border-b border-white/5 bg-[#1a1f29]/50 shrink-0">
             <div className="flex gap-1">
-              {(['scan', 'watch1', 'watch2'] as ActiveTab[]).map((tab, i) => (
+              {(['scan', 'watch1', 'watch2', 'pair'] as ActiveTab[]).map((tab, i) => (
                 <button key={tab} type="button"
                   onClick={() => setActiveTab(tab)}
                   className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
@@ -389,7 +415,7 @@ export default function Home() {
                       : 'text-slate-500 hover:bg-white/5 hover:text-slate-300'
                   }`}
                 >
-                  {['策略掃描', '自選清單', '自選清單二'][i]}
+                  {['策略掃描', '自選清單', '自選清單二', '雙刀掃描'][i]}
                 </button>
               ))}
             </div>
@@ -476,6 +502,77 @@ export default function Home() {
 
           {activeTab === 'watch1' && renderWatchlist(1)}
           {activeTab === 'watch2' && renderWatchlist(2)}
+          {activeTab === 'pair' && (
+            <div className="flex-1 flex flex-col overflow-hidden">
+              <div className="flex items-center gap-2 px-4 py-2 border-b border-white/5 bg-white/[0.02] shrink-0">
+                <button
+                  type="button"
+                  onClick={handlePairScan}
+                  disabled={isPairScanning}
+                  className="px-3 py-1.5 text-xs bg-cyan-900 hover:bg-cyan-800 text-cyan-300 rounded-lg disabled:opacity-50 disabled:cursor-wait transition-colors cursor-pointer"
+                >
+                  {isPairScanning ? '計算中…' : '刷新'}
+                </button>
+                {pairComputedAt && (
+                  <span className="text-xs text-slate-500">
+                    更新：{new Date(pairComputedAt).toLocaleTimeString('zh-TW')}
+                  </span>
+                )}
+                <span className="text-xs text-slate-500 ml-auto">共 {pairResults.length} 對</span>
+              </div>
+
+              {pairResults.length === 0 ? (
+                <div className="flex items-center justify-center text-slate-500 text-sm py-16">
+                  {isPairScanning ? '計算中…' : '點擊刷新載入配對'}
+                </div>
+              ) : (
+                <div className="overflow-y-auto flex-1">
+                  <table className="w-full text-left border-collapse">
+                    <thead className="sticky top-0 bg-[#151921] z-10">
+                      <tr className="text-[10px] font-bold text-slate-500 uppercase tracking-widest border-b border-white/5">
+                        <th className="px-2 py-3">A 股</th>
+                        <th className="px-2 py-3">B 股</th>
+                        <th className="px-2 py-3 text-right">相關</th>
+                        <th className="px-2 py-3 text-right">偏差</th>
+                        <th className="px-2 py-3">建議</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/[0.03]">
+                      {pairResults.map((p, idx) => {
+                        const absdev = Math.abs(p.deviation);
+                        const devColor = absdev >= 2 ? 'text-red-400' : absdev >= 1.5 ? 'text-orange-400' : 'text-slate-300';
+                        return (
+                          <tr
+                            key={`${p.stock_a}-${p.stock_b}-${idx}`}
+                            className="hover:bg-blue-600/5 cursor-pointer transition-colors group text-xs"
+                            onClick={() => openStock(p.stock_a, p.stock_a)}
+                          >
+                            <td className="px-2 py-3">
+                              <span className="text-cyan-300 font-mono font-bold group-hover:underline">{p.stock_a}</span>
+                              <span className={`ml-1 text-xs ${p.a_return_5d >= 0 ? 'text-emerald-400' : 'text-rose-500'}`}>
+                                {p.a_return_5d >= 0 ? '+' : ''}{p.a_return_5d.toFixed(1)}%
+                              </span>
+                            </td>
+                            <td className="px-2 py-3">
+                              <span className="text-cyan-300 font-mono font-bold">{p.stock_b}</span>
+                              <span className={`ml-1 text-xs ${p.b_return_5d >= 0 ? 'text-emerald-400' : 'text-rose-500'}`}>
+                                {p.b_return_5d >= 0 ? '+' : ''}{p.b_return_5d.toFixed(1)}%
+                              </span>
+                            </td>
+                            <td className="px-2 py-3 text-right text-slate-400 font-mono">{p.correlation.toFixed(2)}</td>
+                            <td className={`px-2 py-3 text-right font-mono font-bold ${devColor}`}>
+                              {p.deviation > 0 ? '+' : ''}{p.deviation.toFixed(1)}σ
+                            </td>
+                            <td className="px-2 py-3 text-slate-400 whitespace-nowrap">{p.suggestion}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </main>
 

@@ -8,6 +8,7 @@ from zoneinfo import ZoneInfo
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from stock_report.api import pair_scan
 from stock_report.api.routes import router
 from stock_report.api.ws import ws_router
 from stock_report.data.db import (
@@ -159,6 +160,7 @@ app.add_middleware(
 
 app.include_router(router)
 app.include_router(ws_router)
+app.include_router(pair_scan.router)
 
 
 @app.get("/")

@@ -352,3 +352,15 @@ def query_stock_avg_turnover(stock_ids: list[str], days: int = 20) -> dict[str, 
             rows = cursor.fetchall()
 
     return {row[0]: float(row[1]) for row in rows if row[1] is not None}
+
+
+def query_prices_bulk_recent(days: int = 130) -> list[tuple[str, date, float, int]]:
+    """Bulk fetch (stock_id, date, close, volume) for last `days` calendar days."""
+    with get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "SELECT stock_id, date, close, volume FROM stock_prices "
+                "WHERE date >= CURRENT_DATE - (%s * INTERVAL '1 day') ORDER BY stock_id, date",
+                (days,),
+            )
+            return cursor.fetchall()

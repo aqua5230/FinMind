@@ -187,6 +187,26 @@ export async function fetchRevenueScan(): Promise<RevenueScanResponse> {
   return apiFetch<RevenueScanResponse>("/api/revenue-scan");
 }
 
+export interface PairScanResult {
+  stock_a: string;
+  stock_b: string;
+  correlation: number;
+  deviation: number;
+  suggestion: string;
+  a_return_5d: number;
+  b_return_5d: number;
+}
+
+export interface PairScanResponse {
+  pairs: PairScanResult[];
+  computed_at: string;
+  stock_count: number;
+}
+
+export async function fetchPairScan(): Promise<PairScanResponse> {
+  return apiFetch<PairScanResponse>("/api/pair-scan");
+}
+
 export { API_URL };
 
 export async function fetchRealtimeBar(stockId: string): Promise<StockBar | null> {

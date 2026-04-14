@@ -397,6 +397,118 @@ ps aux | grep backfill_revenue        # 確認仍在執行
 - 重新點掃描器，最新月份應更新至 2026/03
 - 掃描器有 24h TTL 快取（`_revenue_scan_cache`），若需立即生效需重啟後端
 
+## Session 12 進行中：權證小哥影片策略實作（2026-04-15 啟動）
+
+### 來源影片
+「權證小哥｜揭密「神秘分點」建倉清單！大戶撤資潮下的逆勢鎖碼股」
+
+### 影片策略完整分析
+
+| 功能 | 影片說明 | 資料需求 | 可行性 | 狀態 |
+|------|----------|----------|--------|------|
+| **雙刀配對掃描** | 找高相關股對，偏差>閾值時空強買弱 | 現有 price_cache | ✅ 可做 | ⏳ 待做（Codex flag 打錯未執行）|
+| **處置股追蹤** | 快被關股票清單（聽牌條件）+被關後拉回買點 | TWSE 公開 API | ✅ 可做 | ⏳ 待做 |
+| **法人籌碼掃描** | 三大法人持續淨買超（分點替代方案） | FinMind 免費 | ✅ 可做 | ⏳ 待做 |
+| **籌碼好掃描增強** | 量比>2、均線協率、主力三週期全正 | 現有 price_cache | ✅ 可做 | ⏳ 待做 |
+| **可轉債監控** | 找快到期、有擔保、折價 CB（賣回套利） | 爬 MOPS | ⚠️ 需爬蟲 | ⏳ 待做 |
+| **神秘分點** | 券商分點買賣超（原大系列等） | FinMind Sponsor 付費 | ❌ 需付費 | 暫不做 |
+| **期貨價差套利** | 正逆價差比、結算日套力 | Fugle 期貨 API | ❌ 複雜 | 暫不做 |
+
+### Feature 1：雙刀配對掃描（⏳ 待做）
+
+**Codex 失敗原因：** flag 打錯 `--approval-mode` → 應為 `-a auto-edit`，啟動即報錯，未執行任何改動。
+**正確 Codex 指令：**
+```bash
+cd /Users/lollapalooza/Desktop/FinMind && cat /tmp/pair_scan_task.md | codex -a auto-edit -q
+```
+**任務書位置：** `/tmp/pair_scan_task.md`（401 行，本 session 已寫好）
+
+**核心邏輯：**
+- 算法：90 天 rolling 相關係數 ≥ 0.75 → 入選配對
+- 偏差率 = (近5日價差 - 歷史均值) / 歷史標準差
+- +σ = A 相對過強 → 建議「空A 買B」
+- TTL 快取 1 小時
+
+**新增檔案：**
+- `stock_report/api/pair_scan.py` — 配對計算 router
+- `stock_report/data/db.py` — 新增 `query_prices_bulk_recent()`
+
+**前端：**
+- `frontend/app/page.tsx` — 新增第四個 tab「雙刀掃描」
+- `frontend/lib/api.ts` — 新增 `fetchPairScan()`
+
+**驗證方式（做完後必須跑）：**
+- 寫 `backtest_pairs.py`，回測歷史上偏差收斂的勝率與 P&L
+- 不回測就不知道有沒有用
+- 參考 `backtest_v2.py` 的框架
+
+### Feature 2：處置股追蹤（待做）
+
+**影片說的機制：**
+1. 連續兩天漲停 or 達異常條件 → 明天進入「處置」
+2. 「聽牌條件」：明天跌4%以內（不漲）也會被關
+3. 被關後拉回 → 買點
+4. 處置神器顯示：哪些股票明天「聽牌」、距處置差什麼條件
+
+**資料來源：**
+- TWSE 處置名單：`https://www.twse.com.tw/rwd/zh/trading/disposedStock`（公開免費）
+- 距處置條件：從現有 price_cache 算漲跌停連計
+
+**新增：**
+- `stock_report/api/disposition.py` — 爬 TWSE + 計算聽牌條件
+- 前端新增「處置」tab 或 badge
+
+### Feature 3：法人籌碼掃描（待做）
+
+**邏輯：**
+- `TaiwanStockInstitutionalInvestorsBuySell`（FinMind 免費）
+- 外資連續 N 日淨買超 + 投信加碼 → 訊號
+- 結合月營收 YoY 做交叉驗證 → 更強訊號
+
+### Feature 4：籌碼好掃描增強（待做）
+
+**影片精確條件：**
+```
+成交量 > 300 張
+漲幅 > 5%
+量比 > 2（今日量 / N 日均量）
+主力 1日/10日/20日 全正（用三大法人淨買超替代）
+月線協率由小→大排序（找剛突破月線的）
+```
+
+### Feature 5：可轉債監控（待做）
+
+**篩選條件：**
+- 距賣回日 < 6 個月
+- 有銀行擔保（有擔保 > 無擔保）
+- CB 現價 < 賣回價（正套利空間）
+- 年化報酬 > 10%
+
+**資料：** 爬公開資訊觀測站（MOPS）CB 公告
+
+### 雙刀回測設計（Feature 1 做完後接著做）
+
+**新建 `backtest_pairs.py`，框架如下：**
+
+```
+對每個時間點 T（rolling，以月為步進）：
+  1. 用 T-90~T 的 price_cache 找高相關對（corr >= 0.75）
+  2. 偏差率 > 1.5σ → 模擬進場（空A買B or 空B買A）
+  3. 偏差收斂至 0 → 出場
+  4. 超過 15 天未收斂 or 虧損 > 5% → 停損出場
+  5. 成本：兩邊各 0.1425% + 證交稅 0.3%（賣出方）+ 融券費
+
+目標指標：勝率、年化報酬、Sharpe、MaxDD、平均持倉天數
+```
+
+**資料來源：** 本地 `data/price_cache/*.parquet`（1935 檔，已含歷史）
+**參考框架：** `backtest_v2.py`（已有 grid search、停損停利、equity curve 輸出）
+**驗證目標：** Sharpe > 0.5、MaxDD < 20%、勝率 > 45% 才值得上線
+
+**注意：** 融券不一定借得到，回測結果要打折看。
+
+---
+
 ## 下個 session 優先任務
 
 ---

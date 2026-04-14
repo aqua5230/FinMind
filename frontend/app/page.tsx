@@ -90,6 +90,7 @@ export default function Home() {
   const [pairResults,         setPairResults]         = useState<PairScanResult[]>([]);
   const [isPairScanning,      setIsPairScanning]      = useState(false);
   const [pairComputedAt,      setPairComputedAt]      = useState<string>('');
+  const [showPairGuide,       setShowPairGuide]       = useState(false);
   const [signalStats,         setSignalStats]         = useState<SignalStats | null>(null);
   const [activeTab,           setActiveTab]           = useState<ActiveTab>('scan');
   const [watch1,              setWatch1]              = useState<WatchItem[]>([]);
@@ -518,7 +519,36 @@ export default function Home() {
                   </span>
                 )}
                 <span className="text-xs text-slate-500 ml-auto">共 {pairResults.length} 對</span>
+                <button
+                  type="button"
+                  onClick={() => setShowPairGuide(v => !v)}
+                  className={`w-5 h-5 rounded-full text-[11px] font-bold border transition-colors cursor-pointer ${showPairGuide ? 'bg-cyan-600 border-cyan-500 text-white' : 'border-slate-600 text-slate-400 hover:border-cyan-500 hover:text-cyan-400'}`}
+                >
+                  ?
+                </button>
               </div>
+
+              {showPairGuide && (
+                <div className="shrink-0 mx-4 my-2 rounded-lg border border-cyan-900/50 bg-cyan-950/30 px-4 py-3 text-xs text-slate-300 space-y-2">
+                  <div className="font-bold text-cyan-400 mb-1">雙刀掃描：如何判讀</div>
+                  <p className="text-slate-400 leading-relaxed">找出長期走勢高度相關的股票對，當兩者近期出現偏離，押注它們會回歸。同時做一多一空，不受大盤漲跌影響。</p>
+                  <table className="w-full border-collapse mt-1">
+                    <thead>
+                      <tr className="text-[10px] text-slate-500 uppercase border-b border-white/10">
+                        <th className="text-left py-1 pr-4">偏離度（σ）</th>
+                        <th className="text-left py-1">動作</th>
+                      </tr>
+                    </thead>
+                    <tbody className="text-xs">
+                      <tr className="border-b border-white/5"><td className="py-1 pr-4 text-slate-400">0 ~ 1.0</td><td className="py-1 text-slate-400">觀望，不動</td></tr>
+                      <tr className="border-b border-white/5"><td className="py-1 pr-4 text-orange-400 font-mono">1.5 以上</td><td className="py-1 text-orange-300">可考慮進場，按建議欄方向</td></tr>
+                      <tr className="border-b border-white/5"><td className="py-1 pr-4 text-red-400 font-mono">2.0 以上</td><td className="py-1 text-red-300">偏離夠大，機會最明顯</td></tr>
+                      <tr><td className="py-1 pr-4 text-emerald-400 font-mono">回到 ≈ 0</td><td className="py-1 text-emerald-300">兩邊同時平倉出場</td></tr>
+                    </tbody>
+                  </table>
+                  <p className="text-slate-500 text-[11px] pt-1">⚠️ 「空」需要信用帳戶開融券，並非所有股票每天都可融券。</p>
+                </div>
+              )}
 
               {pairResults.length === 0 ? (
                 <div className="flex items-center justify-center text-slate-500 text-sm py-16">

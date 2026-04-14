@@ -135,6 +135,25 @@ export async function resolveStockId(
   throw new Error("找不到此股票");
 }
 
+export type RevenueScanResult = {
+  stock_id: string;
+  stock_name: string;
+  revenue_ym: string;
+  revenue_yoy: number;
+  rank: number;
+};
+
+export type RevenueScanResponse = {
+  scanned_at: string;
+  total_scanned: number;
+  market_filter: string;
+  results: RevenueScanResult[];
+};
+
+export async function fetchRevenueScan(): Promise<RevenueScanResponse> {
+  return apiFetch<RevenueScanResponse>("/api/revenue-scan");
+}
+
 export { API_URL };
 
 export async function fetchRealtimeBar(stockId: string): Promise<StockBar | null> {

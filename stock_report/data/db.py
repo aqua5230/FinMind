@@ -45,6 +45,16 @@ def init_db() -> None:
                 )
                 """
             )
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS stock_revenue_monthly (
+                  stock_id TEXT NOT NULL,
+                  revenue_ym TEXT NOT NULL,
+                  revenue BIGINT NOT NULL,
+                  PRIMARY KEY (stock_id, revenue_ym)
+                )
+                """
+            )
 
 
 def has_price_data() -> bool:
@@ -250,3 +260,95 @@ def get_signal_stats() -> dict[str, Any]:
         "wins": wins,
         "win_rate_pct": win_rate_pct,
     }
+
+
+def upsert_revenue(records: list[dict]) -> int:
+    values = [
+        (
+            str(record["stock_id"]),
+            str(record["revenue_ym"]),
+            int(record["revenue"]),
+        )
+        for record in records
+    ]
+
+    if not values:
+        return 0
+
+    with get_connection() as conn:
+        with conn.cursor() as cursor:
+            from psycopg2.extras import execute_values
+
+            execute_values(
+                cursor,
+                """
+                INSERT INTO stock_revenue_monthly (stock_id, revenue_ym, revenue)
+                VALUES %s
+                ON CONFLICT (stock_id, revenue_ym) DO UPDATE SET
+                    revenue = EXCLUDED.revenue
+                """,
+                values,
+            )
+    return len(records)
+
+
+def query_revenue_yoy_bulk() -> list[dict]:
+    try:
+        with get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    """
+                    WITH latest AS (
+                      SELECT stock_id, MAX(revenue_ym) AS latest_ym
+                      FROM stock_revenue_monthly GROUP BY stock_id
+                    )
+                    SELECT a.stock_id, a.revenue_ym AS latest_ym, a.revenue,
+                           b.revenue AS prev_revenue,
+                           (a.revenue::float / b.revenue) - 1 AS yoy
+                    FROM stock_revenue_monthly a
+                    JOIN latest ON a.stock_id = latest.stock_id AND a.revenue_ym = latest.latest_ym
+                    JOIN stock_revenue_monthly b
+                      ON b.stock_id = a.stock_id
+                     AND b.revenue_ym = LPAD(CAST(CAST(a.revenue_ym AS INT) - 100 AS TEXT), 6, '0')
+                    WHERE b.revenue > 0
+                    """
+                )
+                rows = cursor.fetchall()
+    except Exception:
+        return []
+
+    return [
+        {
+            "stock_id": row[0],
+            "latest_ym": row[1],
+            "revenue": int(row[2]),
+            "prev_revenue": int(row[3]),
+            "yoy": float(row[4]),
+        }
+        for row in rows
+    ]
+
+
+def query_stock_avg_turnover(stock_ids: list[str], days: int = 20) -> dict[str, float]:
+    if not stock_ids:
+        return {}
+
+    with get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                WITH ranked AS (
+                  SELECT stock_id, close * volume AS turnover,
+                         ROW_NUMBER() OVER (PARTITION BY stock_id ORDER BY date DESC) AS rn
+                  FROM stock_prices
+                  WHERE stock_id = ANY(%s)
+                )
+                SELECT stock_id, AVG(turnover) AS avg_turnover
+                FROM ranked WHERE rn <= %s
+                GROUP BY stock_id
+                """,
+                (list(stock_ids), days),
+            )
+            rows = cursor.fetchall()
+
+    return {row[0]: float(row[1]) for row in rows if row[1] is not None}

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { API_URL as API_BASE, fetchScan, resolveStockId, type ScanResult } from "@/lib/api";
+import { API_URL as API_BASE, fetchScan, fetchRevenueScan, resolveStockId, type ScanResult, type RevenueScanResult } from "@/lib/api";
 
 const MACRO_INDICES = [
   { id: 'IDX.TAIEX', name: '加權指數', price: '35417.83', change: '+556.67', percent: '+1.60%', vol: '8295億' },
@@ -89,6 +89,8 @@ export default function Home() {
   const [error, setError] = useState('');
   const [isScanning, setIsScanning] = useState(false);
   const [scanResults, setScanResults] = useState<ScanResult[]>([]);
+  const [revenueScanResults, setRevenueScanResults] = useState<RevenueScanResult[]>([]);
+  const [revenueScanMarket, setRevenueScanMarket] = useState<string>('unknown');
   const [signalStats, setSignalStats] = useState<SignalStats | null>(null);
   const [activeTab, setActiveTab] = useState<ActiveTab>('scan');
 
@@ -117,6 +119,15 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    fetchRevenueScan()
+      .then(r => {
+        setRevenueScanResults(r.results);
+        setRevenueScanMarket(r.market_filter);
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
     fetch(`${API_BASE}/api/signals/stats`)
       .then((response) => response.ok ? response.json() as Promise<SignalStats> : null)
       .then((stats) => setSignalStats(stats))
@@ -137,19 +148,20 @@ export default function Home() {
   }, [cmdInput]);
 
   const handleScan = useCallback(async () => {
-    if (scanResults.length > 0) return;
+    if (revenueScanResults.length > 0) return;
     setIsScanning(true);
     setError('');
     try {
-      const scan = await fetchScan();
-      setScanResults(scan.results);
+      const scan = await fetchRevenueScan();
+      setRevenueScanResults(scan.results);
+      setRevenueScanMarket(scan.market_filter);
     } catch (err) {
-      setScanResults([]);
+      setRevenueScanResults([]);
       setError(err instanceof Error ? err.message : '掃描失敗，請稍後再試');
     } finally {
       setIsScanning(false);
     }
-  }, [scanResults.length]);
+  }, [revenueScanResults.length]);
 
   const handleAddWatch = useCallback(async (which: 1 | 2) => {
     const input = (which === 1 ? wlInput1 : wlInput2).trim();
@@ -352,7 +364,7 @@ export default function Home() {
             <button type="button" className={tabClass('watch1')} onClick={() => setActiveTab('watch1')}>自選清單</button>
             <button type="button" className={tabClass('watch2')} onClick={() => setActiveTab('watch2')}>自選清單二</button>
             {activeTab === 'scan' && (
-              <span className="ml-auto text-[13px] text-[#555] tracking-wider pb-2 pr-2">RSI &lt; 30 ｜ 跌幅 ≥ 20%</span>
+              <span className="ml-auto text-[13px] text-[#555] tracking-wider pb-2 pr-2">月營收動能｜YoY 前 20%｜大盤 200MA 以上</span>
             )}
           </div>
 
@@ -366,47 +378,56 @@ export default function Home() {
                   <span className="text-[#555] ml-2">({signalStats.pending} 筆追蹤中)</span>
                 </div>
               )}
+              {revenueScanMarket === 'block' && (
+                <div className={`px-4 py-2 bg-[#FF003C]/10 border-b border-[#FF003C]/30 text-[#FF003C] text-[15px] tracking-wider shrink-0`}>
+                  ⚠ 大盤低於 200MA，月營收策略暫停
+                </div>
+              )}
               {isScanning ? (
                 <div className="flex-1 flex items-center justify-center text-[#555] text-[15px]">掃描中…</div>
-              ) : scanResults.length === 0 ? (
-                <div className="flex-1 flex items-center justify-center text-[#555] text-[15px]">今日無訊號</div>
+              ) : revenueScanResults.length === 0 ? (
+                <div className="flex-1 flex items-center justify-center text-[#555] text-[15px]">本月無月營收動能訊號</div>
               ) : (
                 <div className="flex-1 overflow-auto">
                   <table className="w-full text-left border-collapse">
                     <thead className={`sticky top-0 bg-[#000000] border-b ${C_BORDER} z-10`}>
                       <tr className="text-[16px] text-[#666] tracking-widest">
-                        <th className="py-2 px-4 font-normal w-[20%]">代號</th>
-                        <th className="py-2 px-4 font-normal w-[20%]">名稱</th>
-                        <th className="py-2 px-4 font-normal w-[20%]">訊號日期</th>
-                        <th className="py-2 px-4 font-normal text-right w-[15%]">天前</th>
-                        <th className="py-2 px-4 font-normal text-center w-[25%]">訊號</th>
+                        <th className="py-2 px-4 font-normal w-[15%]">代號</th>
+                        <th className="py-2 px-4 font-normal w-[25%]">名稱</th>
+                        <th className="py-2 px-4 font-normal w-[20%]">最新月份</th>
+                        <th className="py-2 px-4 font-normal text-right w-[20%]">YoY</th>
+                        <th className="py-2 px-4 font-normal text-right w-[20%]">排名</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#111111]">
-                      {scanResults.map((s) => (
-                        <tr key={`${s.stock_id}-${s.signal_date}`}
-                          className="hover:bg-[#0A0A0A] cursor-pointer group transition-colors"
-                          onClick={() => openStock(s.stock_id, s.stock_name, { signal: s.signal_date, indicators: 'BOLL,MACD,RSI' })}
-                        >
-                          <td className={`py-3 px-4 text-[17px] ${C_SYS} group-hover:underline`}>{s.stock_id}</td>
-                          <td className="py-3 px-4 text-[17px] text-[#DDD]">{s.stock_name}</td>
-                          <td className="py-3 px-4 text-[16px] text-[#888]">{s.signal_date}</td>
-                          <td className="py-3 px-4 text-[16px] text-right text-[#666]">{s.days_ago}</td>
-                          <td className="py-3 px-4 text-center">
-                            <span className="inline-block px-2 py-0.5 text-[15px] border border-[#00FF66] text-[#00FF66]">
-                              強力買進
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
+                      {revenueScanResults.map((r) => {
+                        const yoyPct = (r.revenue_yoy * 100).toFixed(1);
+                        const isUp = r.revenue_yoy >= 0;
+                        return (
+                          <tr key={r.stock_id}
+                            className="hover:bg-[#0A0A0A] cursor-pointer group transition-colors"
+                            onClick={() => openStock(r.stock_id, r.stock_name)}
+                          >
+                            <td className={`py-3 px-4 text-[17px] ${C_SYS} group-hover:underline`}>{r.stock_id}</td>
+                            <td className="py-3 px-4 text-[17px] text-[#DDD]">{r.stock_name}</td>
+                            <td className="py-3 px-4 text-[16px] text-[#888]">
+                              {r.revenue_ym.slice(0, 4)}/{r.revenue_ym.slice(4)}
+                            </td>
+                            <td className={`py-3 px-4 text-[17px] font-bold text-right ${isUp ? C_UP : C_DOWN}`}>
+                              {isUp ? '+' : ''}{yoyPct}%
+                            </td>
+                            <td className="py-3 px-4 text-[16px] text-right text-[#666]">#{r.rank}</td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
               )}
               <div className={`px-4 py-2 border-t ${C_BORDER} flex justify-between items-center shrink-0 bg-[#050505]`}>
-                <span className="text-[15px] text-[#444]">共 {scanResults.length} 筆訊號</span>
+                <span className="text-[15px] text-[#444]">共 {revenueScanResults.length} 支</span>
                 <span className="text-[15px] text-[#666]">
-                  訊號條件：RSI &lt; 30 且跌幅 ≥ 20%
+                  月營收 YoY 前 20%｜日均成交額 &gt; 500萬｜大盤 200MA 以上
                 </span>
               </div>
             </div>

@@ -21,6 +21,9 @@ RSI_PERIOD = 14
 RECENT_TRADING_DAYS = 5
 PRICE_LOOKBACK_DAYS = 120
 MAX_CONCURRENT_FETCHES = 10
+MIN_TURNOVER = 5_000_000
+TWII_TICKER = '^TWII'
+TWII_MA_PERIOD = 200
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -29,6 +32,8 @@ _finmind = FinMindClient()
 _scan_cache: TTLCache[str, "ScanResponse"] = TTLCache(maxsize=1, ttl=600)
 _stock_name_cache: TTLCache[str, dict[str, str]] = TTLCache(maxsize=1, ttl=3600)
 _scan_lock = asyncio.Lock()
+_revenue_scan_cache: TTLCache[str, "RevenueScanResponse"] = TTLCache(maxsize=1, ttl=86400)
+_revenue_scan_lock = asyncio.Lock()
 
 
 @dataclass(frozen=True)
@@ -54,6 +59,25 @@ class ScanResponse(BaseModel):
     scanned_at: str
     total_scanned: int
     results: list[ScanResult]
+
+
+class RevenueScanResult(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    stock_id: str
+    stock_name: str
+    revenue_ym: str
+    revenue_yoy: float
+    rank: int
+
+
+class RevenueScanResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    scanned_at: str
+    total_scanned: int
+    market_filter: str
+    results: list[RevenueScanResult]
 
 
 def calculate_signals(prices: Sequence[PriceBar]) -> list[date]:
@@ -289,3 +313,84 @@ def _rsi_from_averages(average_gain: float, average_loss: float) -> float:
         return 100.0
     relative_strength = average_gain / average_loss
     return 100 - 100 / (1 + relative_strength)
+
+
+@router.get("/revenue-scan", response_model=RevenueScanResponse)
+async def revenue_scan_stocks() -> RevenueScanResponse:
+    cached = _revenue_scan_cache.get("revenue_scan")
+    if cached is not None:
+        return cached
+    async with _revenue_scan_lock:
+        cached = _revenue_scan_cache.get("revenue_scan")
+        if cached is not None:
+            return cached
+        result = await asyncio.to_thread(_run_revenue_scan)
+        _revenue_scan_cache["revenue_scan"] = result
+        return result
+
+
+def _run_revenue_scan() -> RevenueScanResponse:
+    market_filter = _check_twii_filter()
+
+    try:
+        yoy_rows = db.query_revenue_yoy_bulk()
+    except Exception as exc:
+        logger.warning("Failed to query revenue YoY: %s", exc)
+        yoy_rows = []
+
+    if not yoy_rows:
+        return RevenueScanResponse(
+            scanned_at=datetime.now().replace(microsecond=0).isoformat(),
+            total_scanned=0,
+            market_filter=market_filter,
+            results=[],
+        )
+
+    positive = [r for r in yoy_rows if r["yoy"] > 0]
+    positive.sort(key=lambda x: x["yoy"], reverse=True)
+    top20_count = max(1, len(positive) // 5)
+    candidates = positive[:top20_count]
+
+    candidate_ids = [r["stock_id"] for r in candidates]
+    try:
+        turnover_map = db.query_stock_avg_turnover(candidate_ids, days=20)
+    except Exception as exc:
+        logger.warning("Failed to query turnover: %s", exc)
+        turnover_map = {}
+
+    liquid = [r for r in candidates if turnover_map.get(r["stock_id"], 0) >= MIN_TURNOVER]
+
+    names: dict[str, str] = _stock_name_cache.get("stock_names") or {}
+
+    results = []
+    for rank, r in enumerate(liquid, start=1):
+        results.append(RevenueScanResult(
+            stock_id=r["stock_id"],
+            stock_name=names.get(r["stock_id"], r["stock_id"]),
+            revenue_ym=r["latest_ym"],
+            revenue_yoy=round(r["yoy"], 4),
+            rank=rank,
+        ))
+
+    return RevenueScanResponse(
+        scanned_at=datetime.now().replace(microsecond=0).isoformat(),
+        total_scanned=len(liquid),
+        market_filter=market_filter,
+        results=results,
+    )
+
+
+def _check_twii_filter() -> str:
+    try:
+        twii = yf.download(TWII_TICKER, period="300d", progress=False, auto_adjust=True)
+        if twii.empty or len(twii) < TWII_MA_PERIOD:
+            return "unknown"
+        if getattr(twii.columns, "nlevels", 1) > 1:
+            twii.columns = twii.columns.get_level_values(0)
+        close = twii["Close"]
+        ma200 = float(close.rolling(TWII_MA_PERIOD).mean().iloc[-1])
+        current = float(close.iloc[-1])
+        return "pass" if current >= ma200 else "block"
+    except Exception as exc:
+        logger.warning("TWII filter check failed: %s", exc)
+        return "unknown"

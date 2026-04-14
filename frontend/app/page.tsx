@@ -4,37 +4,33 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { API_URL as API_BASE, fetchScan, fetchRevenueScan, resolveStockId, type ScanResult, type RevenueScanResult } from "@/lib/api";
 
 const MACRO_INDICES = [
-  { id: 'IDX.TAIEX', name: '加權指數', price: '35417.83', change: '+556.67', percent: '+1.60%', vol: '8295億' },
-  { id: 'IDX.TPEX', name: '櫃買指數', price: '425.30', change: '+4.15', percent: '+0.98%', vol: '1250億' },
-  { id: 'FUT.TX00', name: '台指期近', price: '35420.00', change: '+643.00', percent: '+1.85%', vol: '12萬口' },
-  { id: 'CUR.USDTWD', name: '美元/台幣', price: '31.850', change: '-0.150', percent: '-0.47%', vol: '12億' },
+  { id: 'IDX.TAIEX',   name: '加權指數', price: '35,417.83', change: '+556.67', percent: '+1.60%', vol: '8295 億', trend: [35000, 35100, 35050, 35200, 35350, 35417] },
+  { id: 'IDX.TPEX',    name: '櫃買指數', price: '425.30',    change: '+4.15',   percent: '+0.98%', vol: '1250 億', trend: [420, 422, 421, 423, 424, 425] },
+  { id: 'FUT.TX00',    name: '台指期近', price: '35,420.00', change: '+643.00', percent: '+1.85%', vol: '12 萬口', trend: [34800, 34900, 35100, 35300, 35420] },
+  { id: 'CUR.USDTWD',  name: '美元/台幣', price: '31.850',   change: '-0.150',  percent: '-0.47%', vol: '12 億',   trend: [32.0, 31.95, 31.9, 31.87, 31.85], isDown: true },
 ];
 
 const SYSTEM_LOGS = [
-  { time: '18:23:45.001', level: '資訊', msg: '加權指數創歷史新高 35417.83 收盤。台積電觸及 2000.00。' },
-  { time: '15:08:12.443', level: '數據', msg: '三大法人淨買超：+378.9 億台幣。外資淨買：+288.0 億台幣。' },
-  { time: '13:33:15.999', level: '警報', msg: '選擇權市場偵測到波動率飆升。VIX 指數 +5.2%。' },
-  { time: '09:57:21.104', level: '執行', msg: '標的 2489.TW 觸及漲停價 42.75。委託簿出現買盤失衡。' },
-  { time: '09:45:00.000', level: '總經', msg: '台幣升值 0.15 來到 31.850。偵測到龐大熱錢資金匯入。' },
-  { time: '09:00:01.050', level: '資訊', msg: '台股開盤。加權指數突破 35000 點關鍵整數壓力位。' },
+  { time: '18:23:45', level: '資訊', msg: '加權指數創歷史新高 35417.83 收盤。台積電觸及 2000.00。' },
+  { time: '15:08:12', level: '數據', msg: '三大法人淨買超：+378.9 億台幣。外資淨買：+288.0 億台幣。' },
+  { time: '13:33:15', level: '警報', msg: '選擇權市場偵測到波動率飆升。VIX 指數 +5.2%。' },
+  { time: '09:57:21', level: '執行', msg: '標的 2489.TW 觸及漲停價 42.75。委託簿出現買盤失衡。' },
+  { time: '09:45:00', level: '總經', msg: '台幣升值 0.15 來到 31.850。偵測到龐大熱錢資金匯入。' },
+  { time: '09:00:01', level: '資訊', msg: '台股開盤。加權指數突破 35000 點關鍵整數壓力位。' },
 ];
 
-const C_UP = 'text-[#00FF66]';
-const C_DOWN = 'text-[#FF003C]';
-const C_SYS = 'text-[#00E5FF]';
-const C_BORDER = 'border-[#222222]';
-
-type WatchItem = { stock_id: string; stock_name: string };
-type ActiveTab = 'scan' | 'watch1' | 'watch2';
-type SignalStats = {
-  total: number;
-  resolved: number;
-  pending: number;
-  wins: number;
-  win_rate_pct: number;
+const LOG_COLORS: Record<string, { text: string; bg: string }> = {
+  '資訊': { text: 'text-blue-400',   bg: 'bg-blue-900/20' },
+  '數據': { text: 'text-emerald-400', bg: 'bg-emerald-900/20' },
+  '警報': { text: 'text-amber-400',  bg: 'bg-amber-900/20' },
+  '執行': { text: 'text-purple-400', bg: 'bg-purple-900/20' },
+  '總經': { text: 'text-rose-400',   bg: 'bg-rose-900/20' },
 };
 
-type IconProps = { size?: number; className?: string; strokeWidth?: number };
+type WatchItem  = { stock_id: string; stock_name: string };
+type ActiveTab  = 'scan' | 'watch1' | 'watch2';
+type SignalStats = { total: number; resolved: number; pending: number; wins: number; win_rate_pct: number };
+type IconProps   = { size?: number; className?: string; strokeWidth?: number };
 
 function Icon({ size = 16, className, strokeWidth = 2, children }: IconProps & { children: React.ReactNode }) {
   return (
@@ -45,27 +41,17 @@ function Icon({ size = 16, className, strokeWidth = 2, children }: IconProps & {
     </svg>
   );
 }
-
-function Search(props: IconProps) {
-  return <Icon {...props}><circle cx="11" cy="11" r="7" /><path d="m16 16 4 4" /></Icon>;
-}
-function Activity(props: IconProps) {
-  return <Icon {...props}><path d="M3 12h4l3-8 4 16 3-8h4" /></Icon>;
-}
-function Terminal(props: IconProps) {
-  return <Icon {...props}><path d="m4 7 5 5-5 5" /><path d="M12 19h8" /></Icon>;
-}
-function Database(props: IconProps) {
-  return <Icon {...props}>
-    <ellipse cx="12" cy="5" rx="8" ry="3" />
-    <path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5" />
-    <path d="M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6" />
-  </Icon>;
-}
+function SearchIcon(p: IconProps)      { return <Icon {...p}><circle cx="11" cy="11" r="7" /><path d="m16 16 4 4" /></Icon>; }
+function ActivityIcon(p: IconProps)    { return <Icon {...p}><path d="M3 12h4l3-8 4 16 3-8h4" /></Icon>; }
+function ZapIcon(p: IconProps)         { return <Icon {...p}><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z" /></Icon>; }
+function ClockIcon(p: IconProps)       { return <Icon {...p}><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></Icon>; }
+function ShieldCheckIcon(p: IconProps) { return <Icon {...p}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><path d="m9 12 2 2 4-4" /></Icon>; }
+function GlobeIcon(p: IconProps)       { return <Icon {...p}><circle cx="12" cy="12" r="10" /><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" /></Icon>; }
+function MonitorIcon(p: IconProps)     { return <Icon {...p}><rect x="2" y="3" width="20" height="14" rx="2" /><path d="M8 21h8M12 17v4" /></Icon>; }
 
 function openStock(stockId: string, stockName: string, opts?: { signal?: string; indicators?: string }) {
   const params = new URLSearchParams({ id: stockId, name: stockName });
-  if (opts?.signal) params.set('signal', opts.signal);
+  if (opts?.signal)     params.set('signal', opts.signal);
   if (opts?.indicators) params.set('indicators', opts.indicators);
   window.open(`/stock?${params.toString()}`, '_blank');
 }
@@ -75,7 +61,6 @@ function loadWatchlist(key: string): WatchItem[] {
   try { return JSON.parse(localStorage.getItem(key) ?? '[]') as WatchItem[]; }
   catch { return []; }
 }
-
 function saveWatchlist(key: string, list: WatchItem[]) {
   localStorage.setItem(key, JSON.stringify(list));
 }
@@ -84,22 +69,21 @@ const WL1_KEY = 'watchlist_1';
 const WL2_KEY = 'watchlist_2';
 
 export default function Home() {
-  const [cmdInput, setCmdInput] = useState('');
-  const [time, setTime] = useState('');
-  const [error, setError] = useState('');
-  const [isScanning, setIsScanning] = useState(false);
-  const [scanResults, setScanResults] = useState<ScanResult[]>([]);
-  const [revenueScanResults, setRevenueScanResults] = useState<RevenueScanResult[]>([]);
-  const [revenueScanMarket, setRevenueScanMarket] = useState<string>('unknown');
-  const [signalStats, setSignalStats] = useState<SignalStats | null>(null);
-  const [activeTab, setActiveTab] = useState<ActiveTab>('scan');
-
-  const [watch1, setWatch1] = useState<WatchItem[]>([]);
-  const [watch2, setWatch2] = useState<WatchItem[]>([]);
-  const [wlInput1, setWlInput1] = useState('');
-  const [wlInput2, setWlInput2] = useState('');
-  const [wlError1, setWlError1] = useState('');
-  const [wlError2, setWlError2] = useState('');
+  const [cmdInput,            setCmdInput]            = useState('');
+  const [time,                setTime]                = useState('');
+  const [error,               setError]               = useState('');
+  const [isScanning,          setIsScanning]          = useState(false);
+  const [scanResults,         setScanResults]         = useState<ScanResult[]>([]);
+  const [revenueScanResults,  setRevenueScanResults]  = useState<RevenueScanResult[]>([]);
+  const [revenueScanMarket,   setRevenueScanMarket]   = useState<string>('unknown');
+  const [signalStats,         setSignalStats]         = useState<SignalStats | null>(null);
+  const [activeTab,           setActiveTab]           = useState<ActiveTab>('scan');
+  const [watch1,              setWatch1]              = useState<WatchItem[]>([]);
+  const [watch2,              setWatch2]              = useState<WatchItem[]>([]);
+  const [wlInput1,            setWlInput1]            = useState('');
+  const [wlInput2,            setWlInput2]            = useState('');
+  const [wlError1,            setWlError1]            = useState('');
+  const [wlError2,            setWlError2]            = useState('');
 
   useEffect(() => {
     setWatch1(loadWatchlist(WL1_KEY));
@@ -108,29 +92,23 @@ export default function Home() {
 
   useEffect(() => {
     const timer = setInterval(() => {
-      const d = new Date();
-      setTime(`2026-04-10 ${d.toLocaleTimeString('en-US', { hour12: false })}.${d.getMilliseconds().toString().padStart(3, '0')} 台北時間`);
-    }, 113);
+      setTime(new Date().toLocaleTimeString('zh-TW', { hour12: false }));
+    }, 1000);
     return () => clearInterval(timer);
   }, []);
 
-  useEffect(() => {
-    fetchScan().then(s => setScanResults(s.results)).catch(() => {});
-  }, []);
+  useEffect(() => { fetchScan().then(s => setScanResults(s.results)).catch(() => {}); }, []);
 
   useEffect(() => {
     fetchRevenueScan()
-      .then(r => {
-        setRevenueScanResults(r.results);
-        setRevenueScanMarket(r.market_filter);
-      })
+      .then(r => { setRevenueScanResults(r.results); setRevenueScanMarket(r.market_filter); })
       .catch(() => {});
   }, []);
 
   useEffect(() => {
     fetch(`${API_BASE}/api/signals/stats`)
-      .then((response) => response.ok ? response.json() as Promise<SignalStats> : null)
-      .then((stats) => setSignalStats(stats))
+      .then(res => res.ok ? res.json() as Promise<SignalStats> : null)
+      .then(stats => setSignalStats(stats))
       .catch(() => {});
   }, []);
 
@@ -164,12 +142,12 @@ export default function Home() {
   }, [revenueScanResults.length]);
 
   const handleAddWatch = useCallback(async (which: 1 | 2) => {
-    const input = (which === 1 ? wlInput1 : wlInput2).trim();
+    const input   = (which === 1 ? wlInput1 : wlInput2).trim();
     const setInput = which === 1 ? setWlInput1 : setWlInput2;
-    const setErr = which === 1 ? setWlError1 : setWlError2;
-    const list = which === 1 ? watch1 : watch2;
-    const setList = which === 1 ? setWatch1 : setWatch2;
-    const key = which === 1 ? WL1_KEY : WL2_KEY;
+    const setErr   = which === 1 ? setWlError1 : setWlError2;
+    const list     = which === 1 ? watch1 : watch2;
+    const setList  = which === 1 ? setWatch1 : setWatch2;
+    const key      = which === 1 ? WL1_KEY : WL2_KEY;
     if (!input) return;
     try {
       const { stockId, stockName } = await resolveStockId(input);
@@ -185,52 +163,45 @@ export default function Home() {
   }, [watch1, watch2, wlInput1, wlInput2]);
 
   const handleRemoveWatch = useCallback((which: 1 | 2, stockId: string) => {
-    const list = which === 1 ? watch1 : watch2;
+    const list    = which === 1 ? watch1 : watch2;
     const setList = which === 1 ? setWatch1 : setWatch2;
-    const key = which === 1 ? WL1_KEY : WL2_KEY;
-    const next = list.filter(w => w.stock_id !== stockId);
+    const key     = which === 1 ? WL1_KEY : WL2_KEY;
+    const next    = list.filter(w => w.stock_id !== stockId);
     setList(next);
     saveWatchlist(key, next);
   }, [watch1, watch2]);
 
-  const tabClass = (tab: ActiveTab) =>
-    `px-4 py-2 text-[15px] tracking-widest cursor-pointer border-b-2 transition-colors ${
-      activeTab === tab
-        ? `${C_SYS} border-[#00E5FF]`
-        : 'text-[#555] border-transparent hover:text-[#888]'
-    }`;
-
   const renderWatchlist = (which: 1 | 2) => {
-    const list = which === 1 ? watch1 : watch2;
-    const input = which === 1 ? wlInput1 : wlInput2;
+    const list     = which === 1 ? watch1 : watch2;
+    const input    = which === 1 ? wlInput1 : wlInput2;
     const setInput = which === 1 ? setWlInput1 : setWlInput2;
-    const err = which === 1 ? wlError1 : wlError2;
+    const err      = which === 1 ? wlError1 : wlError2;
     return (
       <div className="flex-1 flex flex-col overflow-hidden">
         <div className="flex-1 overflow-auto">
           {list.length === 0 ? (
-            <div className="px-4 py-8 text-[#555] text-[15px] text-center">清單為空，請新增標的</div>
+            <div className="px-4 py-10 text-slate-500 text-sm text-center">清單為空，請新增標的</div>
           ) : (
             <table className="w-full text-left border-collapse">
-              <thead className={`sticky top-0 bg-[#000000] border-b ${C_BORDER} z-10`}>
-                <tr className="text-[16px] text-[#666] tracking-widest">
-                  <th className="py-2 px-4 font-normal w-[35%]">代號</th>
-                  <th className="py-2 px-4 font-normal">名稱</th>
-                  <th className="py-2 px-4 font-normal w-[10%]" />
+              <thead className="sticky top-0 bg-[#151921] border-b border-white/5 z-10">
+                <tr className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                  <th className="py-3 px-5 font-normal">代號</th>
+                  <th className="py-3 px-2 font-normal">名稱</th>
+                  <th className="py-3 px-5 font-normal w-10" />
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#111111]">
-                {list.map((w) => (
+              <tbody className="divide-y divide-white/[0.03]">
+                {list.map(w => (
                   <tr key={w.stock_id}
-                    className="hover:bg-[#0A0A0A] cursor-pointer group transition-colors"
+                    className="hover:bg-blue-600/5 cursor-pointer group transition-colors"
                     onClick={() => openStock(w.stock_id, w.stock_name)}
                   >
-                    <td className={`py-3 px-4 text-[17px] ${C_SYS} group-hover:underline`}>{w.stock_id}</td>
-                    <td className="py-3 px-4 text-[17px] text-[#DDD]">{w.stock_name}</td>
-                    <td className="py-3 px-4 text-right">
+                    <td className="py-3.5 px-5 text-sm font-mono font-bold text-blue-400 group-hover:underline">{w.stock_id}</td>
+                    <td className="py-3.5 px-2 text-sm text-slate-200 group-hover:text-white">{w.stock_name}</td>
+                    <td className="py-3.5 px-5 text-right">
                       <button type="button"
-                        onClick={(e) => { e.stopPropagation(); handleRemoveWatch(which, w.stock_id); }}
-                        className="text-[#555] hover:text-[#FF003C] text-[17px] leading-none px-1 cursor-pointer"
+                        onClick={e => { e.stopPropagation(); handleRemoveWatch(which, w.stock_id); }}
+                        className="text-slate-600 hover:text-rose-500 text-base leading-none px-1 cursor-pointer transition-colors"
                       >×</button>
                     </td>
                   </tr>
@@ -239,196 +210,248 @@ export default function Home() {
             </table>
           )}
         </div>
-        <div className={`border-t ${C_BORDER} px-4 py-2 flex items-center gap-2 shrink-0 bg-[#050505]`}>
+        <div className="border-t border-white/5 px-4 py-2 flex items-center gap-2 shrink-0 bg-[#1a1f29]/30">
           <input
             type="text"
             value={input}
-            onChange={(e) => { setInput(e.target.value); (which === 1 ? setWlError1 : setWlError2)(''); }}
-            onKeyDown={(e) => e.key === 'Enter' && handleAddWatch(which)}
+            onChange={e => { setInput(e.target.value); (which === 1 ? setWlError1 : setWlError2)(''); }}
+            onKeyDown={e => e.key === 'Enter' && handleAddWatch(which)}
             placeholder="輸入代號…"
-            className="flex-1 bg-transparent border border-[#333] focus:border-[#00E5FF] outline-none rounded-sm px-2 py-1 text-[15px] text-[#00E5FF] placeholder-[#444]"
+            className="flex-1 bg-transparent border border-white/10 focus:border-blue-500 outline-none rounded-lg px-3 py-1.5 text-sm text-blue-400 placeholder-slate-600 transition-colors"
           />
           <button type="button" onClick={() => handleAddWatch(which)}
-            className="text-[15px] text-[#00FF66] border border-[#00FF66]/40 px-2.5 py-1 rounded-sm hover:bg-[#00FF66]/10 cursor-pointer shrink-0 whitespace-nowrap"
+            className="text-sm text-emerald-400 border border-emerald-500/30 px-3 py-1.5 rounded-lg hover:bg-emerald-500/10 cursor-pointer shrink-0 whitespace-nowrap transition-colors"
           >新增</button>
-          {err && <span className="text-[#FF003C] text-[13px] shrink-0">{err}</span>}
+          {err && <span className="text-rose-500 text-xs shrink-0">{err}</span>}
         </div>
       </div>
     );
   };
 
   return (
-    <div className="h-screen w-full bg-[#000000] text-[#CCCCCC] font-mono flex flex-col selection:bg-[#00E5FF] selection:text-black overflow-hidden">
+    <div className="h-screen bg-[#0a0c10] text-slate-200 font-sans selection:bg-blue-500/30 flex flex-col overflow-hidden">
 
-      {/* 頂部狀態列 */}
-      <header className={`flex justify-between items-center px-4 h-[40px] shrink-0 border-b ${C_BORDER} bg-[#050505]`}>
-        <div className="flex items-center space-x-4">
-          <div className="w-[18px] h-[18px] bg-[#00E5FF] flex items-center justify-center text-black">
-            <Terminal size={12} strokeWidth={3} />
+      {/* ── Header ── */}
+      <header className="h-14 border-b border-white/5 bg-[#0f1117]/80 backdrop-blur-md flex items-center justify-between px-6 shrink-0 z-50">
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-lg flex items-center justify-center shadow-lg shadow-blue-900/20">
+              <ActivityIcon size={18} className="text-white" />
+            </div>
+            <span className="font-bold tracking-tight text-white text-lg">
+              PRO QUANT <span className="text-blue-500 text-sm font-medium">v3.0</span>
+            </span>
           </div>
-          <span className={`text-[17px] font-bold tracking-widest ${C_SYS}`}>量化終端_v2.7</span>
-          <span className="text-[#555] text-[15px]">|</span>
-          <span className="text-[16px] text-[#888] flex items-center">
-            <Activity size={10} className="mr-1.5 text-[#00FF66] animate-pulse" />
+          <div className="flex items-center gap-2 bg-white/5 border border-white/10 px-3 py-1.5 rounded-full text-xs text-emerald-400">
+            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             系統連線正常
-          </span>
+          </div>
         </div>
-        <div className="text-[16px] text-[#888] tracking-widest">{time}</div>
+
+        <div className="flex-1 max-w-xl px-10">
+          <div className="relative group">
+            <SearchIcon size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-400 transition-colors" />
+            <input
+              type="text"
+              value={cmdInput}
+              onChange={e => setCmdInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleSearch(cmdInput)}
+              placeholder="搜尋代號、名稱 (Enter 確認)"
+              className="w-full bg-white/5 border border-white/10 rounded-lg py-2 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all placeholder:text-slate-600"
+              autoFocus
+            />
+          </div>
+        </div>
+
+        <div className="flex items-center gap-4">
+          <div className="flex flex-col items-end">
+            <div className="text-xs text-slate-500 flex items-center gap-1.5">
+              <ClockIcon size={12} /> 台北時間 (GMT+8)
+            </div>
+            <div className="text-sm font-mono font-medium text-white">{time}</div>
+          </div>
+          <button type="button" onClick={handleScan} disabled={isScanning}
+            className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-wait text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors flex items-center gap-2 shadow-lg shadow-emerald-900/20 cursor-pointer"
+          >
+            <ZapIcon size={14} /> {isScanning ? '掃描中…' : '啟動掃描'}
+          </button>
+        </div>
       </header>
 
-      {/* 搜尋列 */}
-      <div className={`flex items-center px-4 h-[48px] shrink-0 border-b ${C_BORDER} bg-[#050505]`}>
-        <div className="bg-[#00E5FF]/10 border border-[#00E5FF]/30 px-2 py-0.5 rounded-sm mr-3 flex items-center shrink-0 whitespace-nowrap">
-          <Search size={12} className={`mr-1.5 ${C_SYS}`} />
-          <span className={`text-[16px] font-bold ${C_SYS} tracking-widest`}>搜尋</span>
-        </div>
-        <input
-          type="text"
-          value={cmdInput}
-          onChange={(e) => setCmdInput(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleSearch(cmdInput)}
-          placeholder="搜尋股票代號..."
-          className="bg-transparent border-none outline-none text-[19px] text-[#00E5FF] w-full min-w-0 flex-1 placeholder-[#444] tracking-widest"
-          autoFocus
-        />
-        <button type="button" onClick={() => handleSearch(cmdInput)}
-          className="text-[15px] text-[#666] bg-[#000000] px-2.5 py-1 border border-[#333] rounded-sm flex items-center shrink-0 whitespace-nowrap ml-3 hover:border-[#555] hover:text-[#999] cursor-pointer"
-        >
-          <span className="text-[#00E5FF] mr-1.5">↵</span> 確認
-        </button>
-        <button type="button" onClick={handleScan} disabled={isScanning}
-          className="text-[15px] text-[#00FF66] bg-[#000000] px-2.5 py-1 border border-[#00FF66]/40 rounded-sm flex items-center shrink-0 whitespace-nowrap ml-2 hover:bg-[#00FF66]/10 disabled:opacity-50 disabled:cursor-wait cursor-pointer"
-        >
-          {isScanning ? '掃描中...' : '掃描'}
-        </button>
-      </div>
-
-      {/* 錯誤訊息 */}
+      {/* ── Error banner ── */}
       {error && (
-        <div className={`px-4 py-1.5 text-[16px] text-[#FF003C] border-b ${C_BORDER} bg-[#050505]`}>{error}</div>
+        <div className="px-6 py-2 text-sm text-rose-400 bg-rose-500/10 border-b border-rose-500/20 shrink-0">{error}</div>
       )}
 
-      {/* 主體 */}
-      <main className="flex-1 flex overflow-hidden">
+      {/* ── Main ── */}
+      <main className="flex-1 flex p-4 gap-4 pb-10 overflow-hidden">
 
-        {/* 左側：大盤指數 + 事件日誌 */}
-        <div className={`w-[45%] flex flex-col border-r ${C_BORDER}`}>
-          <div className={`grid grid-cols-2 grid-rows-2 border-b ${C_BORDER} shrink-0`}>
-            {MACRO_INDICES.map((idx, i) => {
-              const isUp = idx.change.startsWith('+');
+        {/* Left: Market cards + Logs */}
+        <div className="flex-1 flex flex-col gap-4 min-w-0 overflow-hidden">
+
+          {/* 2×2 Market cards */}
+          <div className="grid grid-cols-2 gap-4 shrink-0">
+            {MACRO_INDICES.map(card => {
+              const isDown = card.isDown ?? false;
+              const max = Math.max(...card.trend);
+              const min = Math.min(...card.trend);
               return (
-                <div key={idx.id} className={`p-4 flex flex-col ${i % 2 === 0 ? `border-r ${C_BORDER}` : ''} ${i < 2 ? `border-b ${C_BORDER}` : ''} hover:bg-[#0A0A0A] cursor-pointer`}>
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-[15px] text-[#666] tracking-widest">{idx.name}</span>
-                    <span className="text-[15px] text-[#444]">量:{idx.vol}</span>
+                <div key={card.id} className="bg-[#151921] border border-white/5 rounded-xl p-5 hover:border-white/10 transition-all group cursor-pointer">
+                  <div className="flex justify-between items-start mb-4">
+                    <div>
+                      <h3 className="text-slate-400 text-sm font-medium mb-1">{card.name}</h3>
+                      <div className="text-2xl font-bold tracking-tight text-white font-mono">{card.price}</div>
+                    </div>
+                    <div className={`text-right ${isDown ? 'text-rose-500' : 'text-emerald-400'}`}>
+                      <div className="text-sm font-bold">{card.change}</div>
+                      <div className="text-xs font-medium opacity-80">{card.percent}</div>
+                    </div>
                   </div>
-                  <div className="text-[32px] text-white font-light tracking-tight mb-2">{idx.price}</div>
-                  <div className={`flex items-center justify-between text-[17px] font-bold ${isUp ? C_UP : C_DOWN}`}>
-                    <span>{idx.change}</span>
-                    <span>{idx.percent}</span>
+                  <div className="flex items-end justify-between gap-4">
+                    <div className="flex-1 h-12 flex items-end gap-1 px-1">
+                      {card.trend.map((val, i) => {
+                        const h = max === min ? 50 : ((val - min) / (max - min)) * 100;
+                        return (
+                          <div key={i}
+                            className={`flex-1 rounded-t-sm transition-all duration-500 ${isDown ? 'bg-rose-500/30 group-hover:bg-rose-500/50' : 'bg-emerald-500/30 group-hover:bg-emerald-500/50'}`}
+                            style={{ height: `${h}%` }}
+                          />
+                        );
+                      })}
+                    </div>
+                    <div className="text-right">
+                      <div className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">Volume</div>
+                      <div className="text-xs text-slate-300 font-mono">{card.vol}</div>
+                    </div>
                   </div>
                 </div>
               );
             })}
           </div>
-          <div className="flex-1 flex flex-col overflow-hidden bg-[#020202]">
-            <div className={`px-4 py-2 border-b ${C_BORDER} flex justify-between items-center shrink-0 bg-[#080808]`}>
-              <span className="text-[15px] text-[#666] tracking-widest flex items-center">
-                <Database size={12} className="mr-2" /> 即時事件日誌
-              </span>
-              <span className={`text-[15px] ${C_SYS} animate-pulse`}>[接收中]</span>
+
+          {/* Event logs */}
+          <div className="bg-[#151921] border border-white/5 rounded-xl flex-1 flex flex-col overflow-hidden">
+            <div className="px-5 py-3.5 border-b border-white/5 flex justify-between items-center shrink-0">
+              <h3 className="flex items-center gap-2 text-sm font-bold text-white">
+                <MonitorIcon size={16} className="text-blue-500" />
+                即時事件日誌
+                <span className="ml-2 px-1.5 py-0.5 bg-blue-500/10 text-blue-400 text-[10px] rounded uppercase tracking-widest">Live</span>
+              </h3>
+              <div className="text-[10px] text-slate-500 font-medium animate-pulse">接收中...</div>
             </div>
-            <div className="flex-1 overflow-y-auto p-4 space-y-2">
-              {SYSTEM_LOGS.map((log, i) => (
-                <div key={i} className="flex space-x-3 text-[16px] leading-tight hover:bg-[#111] p-1 -mx-1">
-                  <span className="text-[#555] shrink-0">[{log.time}]</span>
-                  <span className={`shrink-0 w-8 ${log.level === '警報' ? 'text-[#FF003C]' : log.level === '執行' ? 'text-[#00FF66]' : log.level === '總經' ? 'text-[#FFCC00]' : 'text-[#00E5FF]'}`}>
-                    {log.level}
-                  </span>
-                  <span className="text-[#AAA] break-words">{log.msg}</span>
-                </div>
-              ))}
-              <div className="flex space-x-3 text-[16px] leading-tight mt-2">
-                <span className="text-[#555] shrink-0">[{time.split(' ')[1] ?? '00:00:00.000'}]</span>
-                <span className="w-2 h-3 bg-[#00E5FF] animate-pulse" />
-              </div>
+            <div className="flex-1 overflow-y-auto p-2 space-y-1">
+              {SYSTEM_LOGS.map((log, i) => {
+                const c = LOG_COLORS[log.level] ?? { text: 'text-slate-400', bg: 'bg-slate-900/20' };
+                return (
+                  <div key={i} className="flex items-start gap-3 p-3 rounded-lg hover:bg-white/5 transition-colors cursor-pointer group">
+                    <div className="text-[11px] font-mono text-slate-500 mt-0.5 whitespace-nowrap">{log.time}</div>
+                    <div className={`text-[10px] font-bold px-2 py-0.5 rounded ${c.bg} ${c.text} border border-current/10 min-w-[44px] text-center shrink-0`}>
+                      {log.level}
+                    </div>
+                    <div className="text-sm text-slate-300 leading-relaxed group-hover:text-white transition-colors">{log.msg}</div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
 
-        {/* 右側：三 Tab 面板（永遠顯示，不被圖表覆蓋） */}
-        <div className="w-[55%] flex flex-col bg-black overflow-hidden">
+        {/* Right: Tab panel */}
+        <div className="w-[450px] shrink-0 bg-[#151921] border border-white/5 rounded-xl flex flex-col overflow-hidden">
+
           {/* Tab bar */}
-          <div className={`flex items-end border-b ${C_BORDER} bg-[#080808] shrink-0 px-2`}>
-            <button type="button" className={tabClass('scan')} onClick={() => setActiveTab('scan')}>掃描</button>
-            <button type="button" className={tabClass('watch1')} onClick={() => setActiveTab('watch1')}>自選清單</button>
-            <button type="button" className={tabClass('watch2')} onClick={() => setActiveTab('watch2')}>自選清單二</button>
-            {activeTab === 'scan' && (
-              <span className="ml-auto text-[13px] text-[#555] tracking-wider pb-2 pr-2">月營收動能｜YoY 前 20%｜大盤 200MA 以上</span>
-            )}
+          <div className="p-1.5 border-b border-white/5 bg-[#1a1f29]/50 shrink-0">
+            <div className="flex gap-1">
+              {(['scan', 'watch1', 'watch2'] as ActiveTab[]).map((tab, i) => (
+                <button key={tab} type="button"
+                  onClick={() => setActiveTab(tab)}
+                  className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                    activeTab === tab
+                      ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20'
+                      : 'text-slate-500 hover:bg-white/5 hover:text-slate-300'
+                  }`}
+                >
+                  {['策略掃描', '自選清單', '自選清單二'][i]}
+                </button>
+              ))}
+            </div>
           </div>
 
-          {/* 掃描 tab */}
+          {/* ── Scan tab ── */}
           {activeTab === 'scan' && (
             <div className="flex-1 flex flex-col overflow-hidden">
+              <div className="px-4 py-3 border-b border-white/5 bg-white/[0.02] shrink-0">
+                <div className="flex justify-between items-center text-[11px] text-slate-500 font-bold uppercase tracking-wider">
+                  <span>月營收 YoY 前 20%｜日均成交額 &gt; 500萬</span>
+                  <span className="text-blue-400">大盤 200MA 以上</span>
+                </div>
+              </div>
+
               {signalStats !== null && signalStats.resolved > 0 && (
-                <div className={`px-4 py-2 border-b ${C_BORDER} text-[15px] text-[#888] shrink-0 bg-[#050505] tracking-wider`}>
+                <div className="px-4 py-2 border-b border-white/5 text-xs text-slate-400 shrink-0 tracking-wider">
                   策略追蹤：{signalStats.resolved} 筆已結算，勝率{' '}
-                  <span className="text-[#00E5FF]">{signalStats.win_rate_pct}%</span>
-                  <span className="text-[#555] ml-2">({signalStats.pending} 筆追蹤中)</span>
+                  <span className="text-blue-400">{signalStats.win_rate_pct}%</span>
+                  <span className="text-slate-600 ml-2">({signalStats.pending} 筆追蹤中)</span>
                 </div>
               )}
+
               {revenueScanMarket === 'block' && (
-                <div className={`px-4 py-2 bg-[#FF003C]/10 border-b border-[#FF003C]/30 text-[#FF003C] text-[15px] tracking-wider shrink-0`}>
+                <div className="px-4 py-2 bg-rose-500/10 border-b border-rose-500/20 text-rose-400 text-xs tracking-wider shrink-0">
                   ⚠ 大盤低於 200MA，月營收策略暫停
                 </div>
               )}
-              {isScanning ? (
-                <div className="flex-1 flex items-center justify-center text-[#555] text-[15px]">掃描中…</div>
-              ) : revenueScanResults.length === 0 ? (
-                <div className="flex-1 flex items-center justify-center text-[#555] text-[15px]">本月無月營收動能訊號</div>
-              ) : (
-                <div className="flex-1 overflow-auto">
+
+              <div className="flex-1 overflow-auto">
+                {isScanning ? (
+                  <div className="flex items-center justify-center text-slate-500 text-sm py-16">掃描中…</div>
+                ) : revenueScanResults.length === 0 ? (
+                  <div className="flex items-center justify-center text-slate-500 text-sm py-16">本月無月營收動能訊號</div>
+                ) : (
                   <table className="w-full text-left border-collapse">
-                    <thead className={`sticky top-0 bg-[#000000] border-b ${C_BORDER} z-10`}>
-                      <tr className="text-[16px] text-[#666] tracking-widest">
-                        <th className="py-2 px-4 font-normal w-[15%]">代號</th>
-                        <th className="py-2 px-4 font-normal w-[25%]">名稱</th>
-                        <th className="py-2 px-4 font-normal w-[20%]">最新月份</th>
-                        <th className="py-2 px-4 font-normal text-right w-[20%]">YoY</th>
-                        <th className="py-2 px-4 font-normal text-right w-[20%]">排名</th>
+                    <thead className="sticky top-0 bg-[#151921] z-10">
+                      <tr className="text-[10px] font-bold text-slate-500 uppercase tracking-widest border-b border-white/5">
+                        <th className="px-5 py-3">代號/名稱</th>
+                        <th className="px-2 py-3">月份</th>
+                        <th className="px-2 py-3 text-right">YoY</th>
+                        <th className="px-5 py-3 text-right">排名</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-[#111111]">
-                      {revenueScanResults.map((r) => {
+                    <tbody className="divide-y divide-white/[0.03]">
+                      {revenueScanResults.map(r => {
                         const yoyPct = (r.revenue_yoy * 100).toFixed(1);
-                        const isUp = r.revenue_yoy >= 0;
+                        const isUp   = r.revenue_yoy >= 0;
                         return (
                           <tr key={r.stock_id}
-                            className="hover:bg-[#0A0A0A] cursor-pointer group transition-colors"
+                            className="hover:bg-blue-600/5 transition-colors group cursor-pointer"
                             onClick={() => openStock(r.stock_id, r.stock_name)}
                           >
-                            <td className={`py-3 px-4 text-[17px] ${C_SYS} group-hover:underline`}>{r.stock_id}</td>
-                            <td className="py-3 px-4 text-[17px] text-[#DDD]">{r.stock_name}</td>
-                            <td className="py-3 px-4 text-[16px] text-[#888]">
+                            <td className="px-5 py-3.5">
+                              <div className="flex items-center gap-3">
+                                <div className="text-xs font-mono font-bold text-blue-400 group-hover:underline">{r.stock_id}</div>
+                                <div className="text-sm font-medium text-slate-200 group-hover:text-white">{r.stock_name}</div>
+                              </div>
+                            </td>
+                            <td className="px-2 py-3.5 text-xs text-slate-500 font-mono">
                               {r.revenue_ym.slice(0, 4)}/{r.revenue_ym.slice(4)}
                             </td>
-                            <td className={`py-3 px-4 text-[17px] font-bold text-right ${isUp ? C_UP : C_DOWN}`}>
+                            <td className={`px-2 py-3.5 text-right font-mono font-bold text-sm ${isUp ? 'text-emerald-400' : 'text-rose-500'}`}>
                               {isUp ? '+' : ''}{yoyPct}%
                             </td>
-                            <td className="py-3 px-4 text-[16px] text-right text-[#666]">#{r.rank}</td>
+                            <td className="px-5 py-3.5 text-right text-xs font-bold text-slate-600 group-hover:text-slate-400">#{r.rank}</td>
                           </tr>
                         );
                       })}
                     </tbody>
                   </table>
+                )}
+              </div>
+
+              <div className="p-4 border-t border-white/5 bg-[#1a1f29]/30 text-xs text-slate-500 flex justify-between items-center shrink-0">
+                <div>共 <span className="text-white font-mono">{revenueScanResults.length}</span> 支符合條件</div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.6)]" />
+                  即時掃描
                 </div>
-              )}
-              <div className={`px-4 py-2 border-t ${C_BORDER} flex justify-between items-center shrink-0 bg-[#050505]`}>
-                <span className="text-[15px] text-[#444]">共 {revenueScanResults.length} 支</span>
-                <span className="text-[15px] text-[#666]">
-                  月營收 YoY 前 20%｜日均成交額 &gt; 500萬｜大盤 200MA 以上
-                </span>
               </div>
             </div>
           )}
@@ -437,6 +460,23 @@ export default function Home() {
           {activeTab === 'watch2' && renderWatchlist(2)}
         </div>
       </main>
+
+      {/* ── Footer status bar ── */}
+      <footer className="fixed bottom-0 left-0 right-0 h-8 bg-blue-600 flex items-center px-4 justify-between text-[11px] text-white font-medium z-50">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-1.5">
+            <ShieldCheckIcon size={12} /> 加密連線
+          </div>
+          <div className="w-px h-3 bg-white/20" />
+          <div>API 延遲: <span className="font-mono">14ms</span></div>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="uppercase tracking-widest opacity-80">Market Status: Open</div>
+          <div className="bg-white/10 px-2 py-0.5 rounded flex items-center gap-1">
+            <GlobeIcon size={10} /> TWSE
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

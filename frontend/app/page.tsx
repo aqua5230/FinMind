@@ -229,26 +229,31 @@ export default function Home() {
   };
 
   return (
-    <div className="h-screen bg-[#0a0c10] text-slate-200 font-sans selection:bg-blue-500/30 flex flex-col overflow-hidden">
+    <div className="min-h-screen md:h-screen bg-[#0a0c10] text-slate-200 font-sans selection:bg-blue-500/30 flex flex-col md:overflow-hidden">
 
       {/* ── Header ── */}
-      <header className="h-14 border-b border-white/5 bg-[#0f1117]/80 backdrop-blur-md flex items-center justify-between px-6 shrink-0 z-50">
-        <div className="flex items-center gap-6">
+      <header className="h-14 border-b border-white/5 bg-[#0f1117]/80 backdrop-blur-md flex items-center justify-between px-3 md:px-6 shrink-0 z-50">
+        <div className="flex items-center gap-2 md:gap-6">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-lg flex items-center justify-center shadow-lg shadow-blue-900/20">
               <ActivityIcon size={18} className="text-white" />
             </div>
-            <span className="font-bold tracking-tight text-white text-lg">
-              PRO QUANT <span className="text-blue-500 text-sm font-medium">v3.0</span>
+            <span className="font-bold tracking-tight text-white text-base md:text-lg">
+              PRO QUANT <span className="text-blue-500 text-xs md:text-sm font-medium">v3.0</span>
             </span>
           </div>
-          <div className="flex items-center gap-2 bg-white/5 border border-white/10 px-3 py-1.5 rounded-full text-xs text-emerald-400">
+          <div className="hidden sm:flex items-center gap-2 bg-white/5 border border-white/10 px-3 py-1.5 rounded-full text-xs text-emerald-400">
             <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             系統連線正常
           </div>
+          {/* Mobile: compact status dot */}
+          <div className="flex sm:hidden items-center gap-1 text-xs text-emerald-400">
+            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+          </div>
         </div>
 
-        <div className="flex-1 max-w-xl px-10">
+        {/* Desktop search */}
+        <div className="hidden md:block flex-1 max-w-xl px-10">
           <div className="relative group">
             <SearchIcon size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-400 transition-colors" />
             <input
@@ -263,17 +268,30 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
-          <div className="flex flex-col items-end">
+        <div className="flex items-center gap-2 md:gap-4">
+          {/* Mobile: inline search */}
+          <div className="flex md:hidden relative group">
+            <SearchIcon size={15} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-400 transition-colors" />
+            <input
+              type="text"
+              value={cmdInput}
+              onChange={e => setCmdInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleSearch(cmdInput)}
+              placeholder="搜尋代號"
+              className="w-[110px] bg-white/5 border border-white/10 rounded-lg py-1.5 pl-8 pr-2 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500 transition-all placeholder:text-slate-600 focus:w-[140px]"
+            />
+          </div>
+          <div className="hidden md:flex flex-col items-end">
             <div className="text-xs text-slate-500 flex items-center gap-1.5">
               <ClockIcon size={12} /> 台北時間 (GMT+8)
             </div>
             <div className="text-sm font-mono font-medium text-white">{time}</div>
           </div>
+          <div className="flex md:hidden text-xs font-mono text-slate-400">{time}</div>
           <button type="button" onClick={handleScan} disabled={isScanning}
-            className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-wait text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors flex items-center gap-2 shadow-lg shadow-emerald-900/20 cursor-pointer"
+            className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-wait text-white text-xs md:text-sm font-medium px-2.5 md:px-4 py-1.5 md:py-2 rounded-lg transition-colors flex items-center gap-1 md:gap-2 shadow-lg shadow-emerald-900/20 cursor-pointer"
           >
-            <ZapIcon size={14} /> {isScanning ? '掃描中…' : '啟動掃描'}
+            <ZapIcon size={14} /> {isScanning ? '掃描中…' : '掃描'}
           </button>
         </div>
       </header>
@@ -284,23 +302,23 @@ export default function Home() {
       )}
 
       {/* ── Main ── */}
-      <main className="flex-1 flex p-4 gap-4 pb-10 overflow-hidden">
+      <main className="flex-1 flex flex-col md:flex-row p-3 md:p-4 gap-3 md:gap-4 pb-12 md:overflow-hidden max-w-[1600px] w-full mx-auto">
 
         {/* Left: Market cards + Logs */}
-        <div className="flex-1 flex flex-col gap-4 min-w-0 overflow-hidden">
+        <div className="flex flex-col gap-3 md:gap-4 md:flex-1 min-w-0 md:overflow-hidden">
 
           {/* 2×2 Market cards */}
-          <div className="grid grid-cols-2 gap-4 shrink-0">
+          <div className="grid grid-cols-2 gap-2 md:gap-4 shrink-0">
             {MACRO_INDICES.map(card => {
               const isDown = card.isDown ?? false;
               const max = Math.max(...card.trend);
               const min = Math.min(...card.trend);
               return (
-                <div key={card.id} className="bg-[#151921] border border-white/5 rounded-xl p-5 hover:border-white/10 transition-all group cursor-pointer">
-                  <div className="flex justify-between items-start mb-4">
+                <div key={card.id} className="bg-[#151921] border border-white/5 rounded-xl p-3 md:p-5 hover:border-white/10 transition-all group cursor-pointer">
+                  <div className="flex justify-between items-start mb-2 md:mb-4">
                     <div>
-                      <h3 className="text-slate-400 text-sm font-medium mb-1">{card.name}</h3>
-                      <div className="text-2xl font-bold tracking-tight text-white font-mono">{card.price}</div>
+                      <h3 className="text-slate-400 text-xs md:text-sm font-medium mb-1">{card.name}</h3>
+                      <div className="text-lg md:text-2xl font-bold tracking-tight text-white font-mono">{card.price}</div>
                     </div>
                     <div className={`text-right ${isDown ? 'text-rose-500' : 'text-emerald-400'}`}>
                       <div className="text-sm font-bold">{card.change}</div>
@@ -330,7 +348,7 @@ export default function Home() {
           </div>
 
           {/* Event logs */}
-          <div className="bg-[#151921] border border-white/5 rounded-xl flex-1 flex flex-col overflow-hidden">
+          <div className="bg-[#151921] border border-white/5 rounded-xl h-[260px] md:flex-1 flex flex-col overflow-hidden">
             <div className="px-5 py-3.5 border-b border-white/5 flex justify-between items-center shrink-0">
               <h3 className="flex items-center gap-2 text-sm font-bold text-white">
                 <MonitorIcon size={16} className="text-blue-500" />
@@ -357,7 +375,7 @@ export default function Home() {
         </div>
 
         {/* Right: Tab panel */}
-        <div className="w-[450px] shrink-0 bg-[#151921] border border-white/5 rounded-xl flex flex-col overflow-hidden">
+        <div className="w-full md:w-[450px] shrink-0 bg-[#151921] border border-white/5 rounded-xl flex flex-col overflow-hidden min-h-[480px] md:min-h-0">
 
           {/* Tab bar */}
           <div className="p-1.5 border-b border-white/5 bg-[#1a1f29]/50 shrink-0">

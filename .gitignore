@@ -11,6 +11,8 @@ node_modules/
 frontend/node_modules/
 frontend/.next/
 frontend/.env.local
+data/price_cache/
+data/revenue_cache/
 *.pdf
 trading/config*.ini
 *.p12

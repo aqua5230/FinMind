@@ -332,6 +332,56 @@ python3 backtest_v2.py
 - /api/scan（舊RSI策略）仍保留但前端已不使用
 - 自動更新進度會寫入後端 log（Railway → Logs）
 
+## Session 10 已完成：盤中股價不更新修復（✅ 部署完畢）
+
+更新時間：2026-04-15
+
+### 根本原因（三層問題）
+| 問題 | 說明 |
+|------|------|
+| 盤中顯示昨收、永遠不動 | `fetchLatestPrice` 從 DB 抓歷史 K 線，DB 每日 16:30 才更新，盤中沒有今天資料 |
+| 漲跌幅基準錯誤 | 盤中 `last`=昨收、`prev`=前天收，prevClose 算出來是前天收盤，漲跌幅用錯基準 |
+| Fugle WebSocket 無推送 | `ws.py` 送 auth 後未等回應就立即送 subscribe，Fugle 在驗證完成前忽略訂閱 |
+
+### 修復清單
+| 檔案 | 改動 |
+|------|------|
+| `stock_report/api/routes.py` | `/api/realtime/{stock_id}` 補回傳 `prev_close`（TWSE `y` 欄位 = 昨收） |
+| `frontend/lib/api.ts` | `fetchLatestPrice` 盤中改呼叫 `/api/realtime`；失敗或盤後 fallback 歷史 K 線 |
+| `stock_report/api/ws.py` | Fugle auth 後等待 `authenticated` 事件確認再送 subscribe |
+
+### 注意事項
+- `/api/realtime` 用 TWSE 免費 API（`mis.twse.com.tw`），不需 Fugle key，盤中可靠
+- Fugle WebSocket（ws.py）還是保留，作為推送即時成交的補強；修好後應能運作
+- **驗證時間：4/15 開盤後（9:00+）打開股票頁面確認現價是否即時更新**
+
+## Session 11 進行中：月營收資料補抓（背景執行中）
+
+更新時間：2026-04-15
+
+### 問題根因
+| 問題 | 說明 |
+|------|------|
+| 掃描器最新月份卡在 2025/11 | `fetch_revenue.py` 在 session 8 時只抓到 2025/11 |
+| APScheduler 錯過觸發 | Session 9（4/14）部署時，4/12 觸發點已過，202512~202603 全部漏同步 |
+| 缺少月份 | 202512、202601、202602、202603（共 4 個月） |
+
+### 修復方式
+- 新建 `/tmp/backfill_revenue.py`：從 FinMind 抓缺失 4 個月，POST 到 Railway
+- 背景執行中：PID 7928，進度記錄在 `/tmp/backfill_revenue.log`
+- 斷點可續跑（重跑自動跳過已完成）
+- FinMind 確認有 202512 / 202601 / 202602 / 202603 資料
+
+### 確認指令
+```bash
+tail /tmp/backfill_revenue.log        # 查進度
+ps aux | grep backfill_revenue        # 確認仍在執行
+```
+
+### 完成後
+- 重新點掃描器，最新月份應更新至 2026/03
+- 掃描器有 24h TTL 快取（`_revenue_scan_cache`），若需立即生效需重啟後端
+
 ## 下個 session 優先任務
 
 ---

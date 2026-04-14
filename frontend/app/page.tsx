@@ -86,6 +86,7 @@ export default function Home() {
   const [scanResults,         setScanResults]         = useState<ScanResult[]>([]);
   const [revenueScanResults,  setRevenueScanResults]  = useState<RevenueScanResult[]>([]);
   const [revenueScanMarket,   setRevenueScanMarket]   = useState<string>('unknown');
+  const [revenueScanAt,       setRevenueScanAt]       = useState<string>('');
   const [pairResults,         setPairResults]         = useState<PairScanResult[]>([]);
   const [isPairScanning,      setIsPairScanning]      = useState(false);
   const [pairComputedAt,      setPairComputedAt]      = useState<string>('');
@@ -139,20 +140,20 @@ export default function Home() {
   }, [cmdInput]);
 
   const handleScan = useCallback(async () => {
-    if (revenueScanResults.length > 0) return;
     setIsScanning(true);
     setError('');
     try {
       const scan = await fetchRevenueScan();
       setRevenueScanResults(scan.results);
       setRevenueScanMarket(scan.market_filter);
+      setRevenueScanAt(scan.scanned_at);
     } catch (err) {
       setRevenueScanResults([]);
       setError(err instanceof Error ? err.message : '掃描失敗，請稍後再試');
     } finally {
       setIsScanning(false);
     }
-  }, [revenueScanResults.length]);
+  }, []);
 
   const handlePairScan = useCallback(async () => {
     setIsPairScanning(true);
@@ -314,11 +315,6 @@ export default function Home() {
             <div className="text-sm font-mono font-medium text-white">{time}</div>
           </div>
           <div className="flex md:hidden text-xs font-mono text-slate-400">{time}</div>
-          <button type="button" onClick={handleScan} disabled={isScanning}
-            className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-wait text-white text-xs md:text-sm font-medium px-2.5 md:px-4 py-1.5 md:py-2 rounded-lg transition-colors flex items-center gap-1 md:gap-2 shadow-lg shadow-emerald-900/20 cursor-pointer"
-          >
-            <ZapIcon size={14} /> {isScanning ? '掃描中…' : '掃描'}
-          </button>
         </div>
       </header>
 
@@ -424,11 +420,21 @@ export default function Home() {
           {/* ── Scan tab ── */}
           {activeTab === 'scan' && (
             <div className="flex-1 flex flex-col overflow-hidden">
-              <div className="px-4 py-3 border-b border-white/5 bg-white/[0.02] shrink-0">
-                <div className="flex justify-between items-center text-[11px] text-slate-500 font-bold uppercase tracking-wider">
-                  <span>月營收 YoY 前 20%｜日均成交額 &gt; 500萬</span>
-                  <span className="text-blue-400">大盤 200MA 以上</span>
-                </div>
+              <div className="flex items-center gap-2 px-4 py-2 border-b border-white/5 bg-white/[0.02] shrink-0">
+                <button
+                  type="button"
+                  onClick={handleScan}
+                  disabled={isScanning}
+                  className="px-3 py-1.5 text-xs bg-cyan-900 hover:bg-cyan-800 text-cyan-300 rounded-lg disabled:opacity-50 disabled:cursor-wait transition-colors cursor-pointer"
+                >
+                  {isScanning ? '掃描中…' : '刷新'}
+                </button>
+                {revenueScanAt && (
+                  <span className="text-xs text-slate-500">
+                    更新：{new Date(revenueScanAt).toLocaleTimeString('zh-TW')}
+                  </span>
+                )}
+                <span className="text-xs text-slate-500 ml-auto">共 {revenueScanResults.length} 支</span>
               </div>
 
               {signalStats !== null && signalStats.resolved > 0 && (
@@ -490,13 +496,6 @@ export default function Home() {
                 )}
               </div>
 
-              <div className="p-4 border-t border-white/5 bg-[#1a1f29]/30 text-xs text-slate-500 flex justify-between items-center shrink-0">
-                <div>共 <span className="text-white font-mono">{revenueScanResults.length}</span> 支符合條件</div>
-                <div className="flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.6)]" />
-                  即時掃描
-                </div>
-              </div>
             </div>
           )}
 

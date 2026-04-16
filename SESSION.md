@@ -54,7 +54,7 @@ FinMind/
 | 法人籌碼掃描 | ✅ `/api/institution-scan`，TWSE T86 免費 API，TTL 3600s，已部署 |
 | 處置股追蹤 | ✅ `/api/disposition-scan`，TWSE punish API，TTL 3600s，已部署 |
 | 籌碼好掃描（Feature 4） | ✅ `/api/chips-scan`，DB 價格 + T86 法人，TTL 3600s，已部署 |
-| 可轉債監控（Feature 5） | ✅ `/api/cb-scan`，TPEX OpenAPI ISSBD5，TTL 1800s，**待部署** |
+| 可轉債監控（Feature 5） | ✅ `/api/cb-scan`，TPEX OpenAPI ISSBD5，TTL 1800s，已部署 |
 
 ---
 

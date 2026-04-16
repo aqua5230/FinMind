@@ -47,7 +47,7 @@ const LOG_COLORS: Record<string, { text: string; bg: string }> = {
 };
 
 type WatchItem  = { stock_id: string; stock_name: string };
-type ActiveTab  = 'scan' | 'watch1' | 'watch2' | 'pair' | 'institution' | 'disposition' | 'chips' | 'cb';
+type ActiveTab  = 'scan' | 'watch1' | 'pair' | 'institution' | 'disposition' | 'chips' | 'cb';
 type IconProps   = { size?: number; className?: string; strokeWidth?: number };
 
 function Icon({ size = 16, className, strokeWidth = 2, children }: IconProps & { children: React.ReactNode }) {
@@ -111,6 +111,12 @@ export default function Home() {
   const [cbLoading,           setCbLoading]           = useState(false);
   const [cbError,             setCbError]             = useState<string>('');
   const [showPairGuide,       setShowPairGuide]       = useState(false);
+  const [showScanGuide,       setShowScanGuide]       = useState(false);
+  const [showWatchGuide,      setShowWatchGuide]      = useState(false);
+  const [showInstitutionGuide,setShowInstitutionGuide]= useState(false);
+  const [showDispositionGuide,setShowDispositionGuide]= useState(false);
+  const [showChipsGuide,      setShowChipsGuide]      = useState(false);
+  const [showCbGuide,         setShowCbGuide]         = useState(false);
   const [activeTab,           setActiveTab]           = useState<ActiveTab>('scan');
   const [watch1,              setWatch1]              = useState<WatchItem[]>([]);
   const [watch2,              setWatch2]              = useState<WatchItem[]>([]);
@@ -274,6 +280,25 @@ export default function Home() {
     const err      = which === 1 ? wlError1 : wlError2;
     return (
       <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex items-center gap-2 px-4 py-2 border-b border-white/5 bg-white/[0.02] shrink-0">
+          <span className="text-xs text-slate-500">自選清單</span>
+          <span className="ml-auto" />
+          <button
+            type="button"
+            onClick={() => setShowWatchGuide(v => !v)}
+            className={`w-5 h-5 rounded-full text-[11px] font-bold border transition-colors cursor-pointer ${showWatchGuide ? 'bg-cyan-600 border-cyan-500 text-white' : 'border-slate-600 text-slate-400 hover:border-cyan-500 hover:text-cyan-400'}`}
+          >
+            ?
+          </button>
+        </div>
+
+        {showWatchGuide && (
+          <div className="shrink-0 mx-4 my-2 rounded-lg border border-cyan-900/50 bg-cyan-950/30 px-4 py-3 text-xs text-slate-300 space-y-2">
+            <div className="font-bold text-cyan-400 mb-1">自選清單：使用說明</div>
+            <p className="text-slate-400 leading-relaxed">輸入股票代號後按 Enter 或「新增」加入清單；點擊列表中的股票可開啟K線圖；按 × 移除。清單儲存在本機瀏覽器，重整不會消失。</p>
+          </div>
+        )}
+
         <div className="flex-1 overflow-auto">
           {list.length === 0 ? (
             <div className="px-4 py-10 text-slate-500 text-sm text-center">清單為空，請新增標的</div>
@@ -471,7 +496,7 @@ export default function Home() {
           {/* Tab bar */}
           <div className="p-1.5 border-b border-white/5 bg-[#1a1f29]/50 shrink-0">
             <div className="flex gap-1">
-              {(['scan', 'watch1', 'watch2', 'pair', 'institution', 'disposition', 'chips', 'cb'] as ActiveTab[]).map((tab, i) => (
+              {(['scan', 'watch1', 'pair', 'institution', 'disposition', 'chips', 'cb'] as ActiveTab[]).map((tab, i) => (
                 <button key={tab} type="button"
                   onClick={() => {
                     setActiveTab(tab);
@@ -494,7 +519,7 @@ export default function Home() {
                       : 'text-slate-500 hover:bg-white/5 hover:text-slate-300'
                   }`}
                 >
-                  {['策略掃描', '自選清單', '自選清單二', '雙刀掃描', '法人', '處置', '籌碼好', '可轉債'][i]}
+                  {['策略掃描', '自選清單', '雙刀掃描', '法人', '處置', '籌碼好', '可轉債'][i]}
                 </button>
               ))}
             </div>
@@ -518,7 +543,35 @@ export default function Home() {
                   </span>
                 )}
                 <span className="text-xs text-slate-500 ml-auto">共 {revenueScanResults.length} 支</span>
+                <button
+                  type="button"
+                  onClick={() => setShowScanGuide(v => !v)}
+                  className={`w-5 h-5 rounded-full text-[11px] font-bold border transition-colors cursor-pointer ${showScanGuide ? 'bg-cyan-600 border-cyan-500 text-white' : 'border-slate-600 text-slate-400 hover:border-cyan-500 hover:text-cyan-400'}`}
+                >
+                  ?
+                </button>
               </div>
+
+              {showScanGuide && (
+                <div className="shrink-0 mx-4 my-2 rounded-lg border border-cyan-900/50 bg-cyan-950/30 px-4 py-3 text-xs text-slate-300 space-y-2">
+                  <div className="font-bold text-cyan-400 mb-1">月營收動能掃描：如何判讀</div>
+                  <p className="text-slate-400 leading-relaxed">篩選月營收年增率（YoY）排名前 20% 的股票，搭配大盤 200MA 濾網。大盤跌破 200MA 時停止持股，降低系統性風險。</p>
+                  <table className="w-full border-collapse mt-1">
+                    <thead>
+                      <tr className="text-[10px] text-slate-500 uppercase border-b border-white/10">
+                        <th className="text-left py-1 pr-4">YoY 排名</th>
+                        <th className="text-left py-1">動作</th>
+                      </tr>
+                    </thead>
+                    <tbody className="text-xs">
+                      <tr className="border-b border-white/5"><td className="py-1 pr-4 text-slate-400">前 20%</td><td className="py-1 text-slate-400">符合訊號，可列入觀察</td></tr>
+                      <tr className="border-b border-white/5"><td className="py-1 pr-4 text-orange-400 font-mono">#1–#10</td><td className="py-1 text-orange-300">動能最強，優先關注</td></tr>
+                      <tr><td className="py-1 pr-4 text-red-400 font-mono">大盤 block</td><td className="py-1 text-red-300">暫停策略，不持股</td></tr>
+                    </tbody>
+                  </table>
+                  <p className="text-slate-500 text-[11px] pt-1">⚠️ 月營收每月10–12日公布，公布前數據為上期。</p>
+                </div>
+              )}
 
               {revenueScanMarket === 'block' && (
                 <div className="px-4 py-2 bg-rose-500/10 border-b border-rose-500/20 text-rose-400 text-xs tracking-wider shrink-0">
@@ -575,7 +628,6 @@ export default function Home() {
           )}
 
           {activeTab === 'watch1' && renderWatchlist(1)}
-          {activeTab === 'watch2' && renderWatchlist(2)}
           {activeTab === 'pair' && (
             <div className="flex-1 flex flex-col overflow-hidden">
               <div className="flex items-center gap-2 px-4 py-2 border-b border-white/5 bg-white/[0.02] shrink-0">
@@ -678,7 +730,7 @@ export default function Home() {
           )}
           {activeTab === 'institution' && (
             <div className="flex flex-col h-full">
-              <div className="flex items-center justify-between px-3 py-2 border-b border-[#222222]">
+              <div className="flex items-center gap-2 px-3 py-2 border-b border-[#222222]">
                 <span className="text-xs text-[#8e8e93]">
                   {institutionScannedAt ? `更新：${institutionScannedAt.slice(0, 16).replace('T', ' ')}` : '法人連買篩選'}
                 </span>
@@ -686,11 +738,37 @@ export default function Home() {
                   type="button"
                   onClick={handleInstitutionScan}
                   disabled={institutionLoading}
-                  className="px-2 py-1 text-xs rounded border border-[#333] text-[#8e8e93] hover:text-white hover:border-[#555] transition-colors cursor-pointer disabled:opacity-40"
+                  className="px-2 py-1 text-xs rounded border border-[#333] text-[#8e8e93] hover:text-white hover:border-[#555] transition-colors cursor-pointer disabled:opacity-40 ml-auto"
                 >
                   {institutionLoading ? '掃描中…' : '刷新'}
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setShowInstitutionGuide(v => !v)}
+                  className={`w-5 h-5 rounded-full text-[11px] font-bold border transition-colors cursor-pointer ${showInstitutionGuide ? 'bg-cyan-600 border-cyan-500 text-white' : 'border-slate-600 text-slate-400 hover:border-cyan-500 hover:text-cyan-400'}`}
+                >
+                  ?
+                </button>
               </div>
+              {showInstitutionGuide && (
+                <div className="shrink-0 mx-4 my-2 rounded-lg border border-cyan-900/50 bg-cyan-950/30 px-4 py-3 text-xs text-slate-300 space-y-2">
+                  <div className="font-bold text-cyan-400 mb-1">法人籌碼掃描：如何判讀</div>
+                  <p className="text-slate-400 leading-relaxed">篩選外資連續買超 ≥5 天、且近 20 日投信買超 ≥3 天的股票。外資＋投信同向，通常代表機構資金正在佈局。</p>
+                  <table className="w-full border-collapse mt-1">
+                    <thead>
+                      <tr className="text-[10px] text-slate-500 uppercase border-b border-white/10">
+                        <th className="text-left py-1 pr-4">指標</th>
+                        <th className="text-left py-1">說明</th>
+                      </tr>
+                    </thead>
+                    <tbody className="text-xs">
+                      <tr className="border-b border-white/5"><td className="py-1 pr-4 text-slate-400">外資連買天數</td><td className="py-1 text-slate-400">越多代表持續性越強</td></tr>
+                      <tr><td className="py-1 pr-4 text-slate-400">投信買超天數</td><td className="py-1 text-slate-400">20日內買超次數</td></tr>
+                    </tbody>
+                  </table>
+                  <p className="text-slate-500 text-[11px] pt-1">⚠️ 資料來自 TWSE T86，首次載入約需 13 秒（25 個交易日逐日查詢）。</p>
+                </div>
+              )}
               <div className="flex-1 overflow-y-auto">
                 {institutionLoading && institutionResults.length === 0 ? (
                   <div className="flex items-center justify-center h-full text-[#8e8e93] text-sm">掃描中…</div>
@@ -721,7 +799,7 @@ export default function Home() {
           )}
           {activeTab === 'disposition' && (
             <div className="flex flex-col h-full">
-              <div className="flex items-center justify-between px-3 py-2 border-b border-[#222222]">
+              <div className="flex items-center gap-2 px-3 py-2 border-b border-[#222222]">
                 <span className="text-xs text-[#8e8e93]">
                   {dispositionScannedAt ? `更新：${dispositionScannedAt.slice(0, 16).replace('T', ' ')}` : '處置股追蹤'}
                 </span>
@@ -729,11 +807,38 @@ export default function Home() {
                   type="button"
                   onClick={handleDispositionScan}
                   disabled={dispositionLoading}
-                  className="px-2 py-1 text-xs rounded border border-[#333] text-[#8e8e93] hover:text-white hover:border-[#555] transition-colors cursor-pointer disabled:opacity-40"
+                  className="px-2 py-1 text-xs rounded border border-[#333] text-[#8e8e93] hover:text-white hover:border-[#555] transition-colors cursor-pointer disabled:opacity-40 ml-auto"
                 >
                   {dispositionLoading ? '掃描中…' : '刷新'}
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setShowDispositionGuide(v => !v)}
+                  className={`w-5 h-5 rounded-full text-[11px] font-bold border transition-colors cursor-pointer ${showDispositionGuide ? 'bg-cyan-600 border-cyan-500 text-white' : 'border-slate-600 text-slate-400 hover:border-cyan-500 hover:text-cyan-400'}`}
+                >
+                  ?
+                </button>
               </div>
+              {showDispositionGuide && (
+                <div className="shrink-0 mx-4 my-2 rounded-lg border border-cyan-900/50 bg-cyan-950/30 px-4 py-3 text-xs text-slate-300 space-y-2">
+                  <div className="font-bold text-cyan-400 mb-1">處置股追蹤：如何判讀</div>
+                  <p className="text-slate-400 leading-relaxed">追蹤即將解除處置的股票。處置期間交易受限（漲跌幅 ±10%→±3.5%），解除後流動性恢復，短期常有補漲行情。</p>
+                  <table className="w-full border-collapse mt-1">
+                    <thead>
+                      <tr className="text-[10px] text-slate-500 uppercase border-b border-white/10">
+                        <th className="text-left py-1 pr-4">條件</th>
+                        <th className="text-left py-1">說明</th>
+                      </tr>
+                    </thead>
+                    <tbody className="text-xs">
+                      <tr className="border-b border-white/5"><td className="py-1 pr-4 text-slate-400">距解除 ≤5 天</td><td className="py-1 text-slate-400">即將解禁</td></tr>
+                      <tr className="border-b border-white/5"><td className="py-1 pr-4 text-slate-400">處置期間跌幅 &lt;8%</td><td className="py-1 text-slate-400">股價未崩，結構完整</td></tr>
+                      <tr><td className="py-1 pr-4 text-slate-400">量比 &lt;0.5</td><td className="py-1 text-slate-400">縮量，主力尚未出貨</td></tr>
+                    </tbody>
+                  </table>
+                  <p className="text-slate-500 text-[11px] pt-1">⚠️ 解除處置後需自行評估基本面，不保證一定補漲。</p>
+                </div>
+              )}
               <div className="flex-1 overflow-y-auto">
                 {dispositionLoading ? (
                   <div className="flex items-center justify-center h-full text-[#8e8e93] text-sm">
@@ -782,7 +887,7 @@ export default function Home() {
           )}
           {activeTab === 'chips' && (
             <div className="flex flex-col h-full">
-              <div className="flex items-center justify-between px-3 py-2 border-b border-[#222222]">
+              <div className="flex items-center gap-2 px-3 py-2 border-b border-[#222222]">
                 <span className="text-xs text-[#8e8e93]">
                   {chipsScannedAt ? `更新：${chipsScannedAt.slice(0, 16).replace('T', ' ')}` : '籌碼好掃描'}
                 </span>
@@ -790,11 +895,40 @@ export default function Home() {
                   type="button"
                   onClick={handleChipsScan}
                   disabled={chipsLoading}
-                  className="px-2 py-1 text-xs rounded border border-[#333] text-[#8e8e93] hover:text-white hover:border-[#555] transition-colors cursor-pointer disabled:opacity-40"
+                  className="px-2 py-1 text-xs rounded border border-[#333] text-[#8e8e93] hover:text-white hover:border-[#555] transition-colors cursor-pointer disabled:opacity-40 ml-auto"
                 >
                   {chipsLoading ? '掃描中…' : '刷新'}
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setShowChipsGuide(v => !v)}
+                  className={`w-5 h-5 rounded-full text-[11px] font-bold border transition-colors cursor-pointer ${showChipsGuide ? 'bg-cyan-600 border-cyan-500 text-white' : 'border-slate-600 text-slate-400 hover:border-cyan-500 hover:text-cyan-400'}`}
+                >
+                  ?
+                </button>
               </div>
+              {showChipsGuide && (
+                <div className="shrink-0 mx-4 my-2 rounded-lg border border-cyan-900/50 bg-cyan-950/30 px-4 py-3 text-xs text-slate-300 space-y-2">
+                  <div className="font-bold text-cyan-400 mb-1">籌碼好掃描：如何判讀</div>
+                  <p className="text-slate-400 leading-relaxed">同時滿足「量、價、籌碼」三個條件的股票，代表當日有主力資金介入且技術面轉強。</p>
+                  <table className="w-full border-collapse mt-1">
+                    <thead>
+                      <tr className="text-[10px] text-slate-500 uppercase border-b border-white/10">
+                        <th className="text-left py-1 pr-4">條件</th>
+                        <th className="text-left py-1">標準</th>
+                      </tr>
+                    </thead>
+                    <tbody className="text-xs">
+                      <tr className="border-b border-white/5"><td className="py-1 pr-4 text-slate-400">成交量</td><td className="py-1 text-slate-400">&gt; 300 張</td></tr>
+                      <tr className="border-b border-white/5"><td className="py-1 pr-4 text-slate-400">漲幅</td><td className="py-1 text-slate-400">&gt; 5%</td></tr>
+                      <tr className="border-b border-white/5"><td className="py-1 pr-4 text-slate-400">量比</td><td className="py-1 text-slate-400">今日量 / N日均量 &gt; 2</td></tr>
+                      <tr className="border-b border-white/5"><td className="py-1 pr-4 text-slate-400">法人方向</td><td className="py-1 text-slate-400">外資＋投信近日均為淨買超</td></tr>
+                      <tr><td className="py-1 pr-4 text-slate-400">月線乖離率</td><td className="py-1 text-slate-400">由小到大排序（最貼近月線優先）</td></tr>
+                    </tbody>
+                  </table>
+                  <p className="text-slate-500 text-[11px] pt-1">⚠️ 單日強勢不代表持續，建議搭配整體大盤趨勢判斷。</p>
+                </div>
+              )}
               <div className="flex-1 overflow-y-auto">
                 {chipsLoading && chipsResults.length === 0 ? (
                   <div className="flex items-center justify-center h-full text-[#8e8e93] text-sm">
@@ -841,7 +975,7 @@ export default function Home() {
           )}
           {activeTab === 'cb' && (
             <div className="flex flex-col h-full">
-              <div className="flex items-center justify-between px-3 py-2 border-b border-[#222222]">
+              <div className="flex items-center gap-2 px-3 py-2 border-b border-[#222222]">
                 <span className="text-xs text-[#8e8e93]">
                   {cbScannedAt ? `更新：${cbScannedAt.slice(0, 16).replace('T', ' ')}` : '可轉債監控'}
                 </span>
@@ -849,11 +983,39 @@ export default function Home() {
                   type="button"
                   onClick={handleCbScan}
                   disabled={cbLoading}
-                  className="px-2 py-1 text-xs rounded border border-[#333] text-[#8e8e93] hover:text-white hover:border-[#555] transition-colors cursor-pointer disabled:opacity-40"
+                  className="px-2 py-1 text-xs rounded border border-[#333] text-[#8e8e93] hover:text-white hover:border-[#555] transition-colors cursor-pointer disabled:opacity-40 ml-auto"
                 >
                   {cbLoading ? '掃描中…' : '刷新'}
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setShowCbGuide(v => !v)}
+                  className={`w-5 h-5 rounded-full text-[11px] font-bold border transition-colors cursor-pointer ${showCbGuide ? 'bg-cyan-600 border-cyan-500 text-white' : 'border-slate-600 text-slate-400 hover:border-cyan-500 hover:text-cyan-400'}`}
+                >
+                  ?
+                </button>
               </div>
+              {showCbGuide && (
+                <div className="shrink-0 mx-4 my-2 rounded-lg border border-cyan-900/50 bg-cyan-950/30 px-4 py-3 text-xs text-slate-300 space-y-2">
+                  <div className="font-bold text-cyan-400 mb-1">可轉債監控：如何判讀</div>
+                  <p className="text-slate-400 leading-relaxed">篩選有銀行擔保、距賣回日 &lt;180 天、年化報酬 &gt;1% 的可轉債。賣回日前持有者可按賣回價賣回給發行公司，等同低風險套利。</p>
+                  <table className="w-full border-collapse mt-1">
+                    <thead>
+                      <tr className="text-[10px] text-slate-500 uppercase border-b border-white/10">
+                        <th className="text-left py-1 pr-4">欄位</th>
+                        <th className="text-left py-1">說明</th>
+                      </tr>
+                    </thead>
+                    <tbody className="text-xs">
+                      <tr className="border-b border-white/5"><td className="py-1 pr-4 text-slate-400">賣回日</td><td className="py-1 text-slate-400">可要求公司買回的日期</td></tr>
+                      <tr className="border-b border-white/5"><td className="py-1 pr-4 text-slate-400">賣回價</td><td className="py-1 text-slate-400">公司保證收購價（通常 100–103）</td></tr>
+                      <tr className="border-b border-white/5"><td className="py-1 pr-4 text-slate-400">剩餘天數</td><td className="py-1 text-slate-400">距賣回日天數，越少流動性越高</td></tr>
+                      <tr><td className="py-1 pr-4 text-slate-400">年化報酬</td><td className="py-1 text-slate-400">以現價估算持有至賣回的年化獲利</td></tr>
+                    </tbody>
+                  </table>
+                  <p className="text-slate-500 text-[11px] pt-1">⚠️ 現價以面值 100 估算，實際須自行查詢成交價。銀行擔保表示即使發行公司違約，銀行仍負責償付。</p>
+                </div>
+              )}
               <div className="flex-1 overflow-y-auto">
                 {cbLoading && cbResults.length === 0 ? (
                   <div className="flex items-center justify-center h-full text-[#8e8e93] text-sm">

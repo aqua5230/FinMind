@@ -249,6 +249,29 @@ export async function fetchChipsScan(): Promise<ChipsScanResponse> {
   return apiFetch<ChipsScanResponse>("/api/chips-scan");
 }
 
+export type CbScanResult = {
+  bond_id: string;
+  stock_id: string;
+  stock_name: string;
+  put_date: string;
+  put_price: number;
+  cb_price: number;
+  days_to_put: number;
+  annualized_return: number;
+  guarantor: string;
+};
+
+export type CbScanResponse = {
+  scanned_at: string;
+  total_scanned: number;
+  results: CbScanResult[];
+  error?: string | null;
+};
+
+export async function fetchCbScan(): Promise<CbScanResponse> {
+  return apiFetch<CbScanResponse>("/api/cb-scan");
+}
+
 export { API_URL };
 
 export async function fetchRealtimeBar(stockId: string): Promise<StockBar | null> {

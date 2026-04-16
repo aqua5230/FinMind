@@ -1,6 +1,6 @@
 # SESSION.md — FinMind 專案狀態
 
-更新時間：2026-04-16（session 17）
+更新時間：2026-04-16（session 18，Feature 5 可轉債監控完成）
 
 ---
 
@@ -53,7 +53,8 @@ FinMind/
 | Railway PostgreSQL | ✅ 月營收 169,689 筆，價格每日 16:30 同步 |
 | 法人籌碼掃描 | ✅ `/api/institution-scan`，TWSE T86 免費 API，TTL 3600s，已部署 |
 | 處置股追蹤 | ✅ `/api/disposition-scan`，TWSE punish API，TTL 3600s，已部署 |
-| 籌碼好掃描（Feature 4） | ✅ `/api/chips-scan`，DB 價格 + T86 法人，TTL 3600s，待部署 |
+| 籌碼好掃描（Feature 4） | ✅ `/api/chips-scan`，DB 價格 + T86 法人，TTL 3600s，已部署 |
+| 可轉債監控（Feature 5） | ✅ `/api/cb-scan`，TPEX OpenAPI ISSBD5，TTL 1800s，**待部署** |
 
 ---
 
@@ -91,8 +92,7 @@ FinMind/
 
 | 優先度 | 項目 | 說明 |
 |--------|------|------|
-| **HIGH** | 部署 Feature 4（籌碼好掃描） | commit + `railway service FinMind && railway up` + `./deploy.sh` |
-| **LOW** | 可轉債監控（Feature 5） | 爬 MOPS，距賣回<6個月+有擔保+折價 |
+| — | 所有已規劃 Feature 完成 | Feature 5 已完成 |
 
 ---
 
@@ -146,13 +146,15 @@ Gemini 建議：雙重停損（Z=3.5 + 虧損 5-10%）
 - 前端：新增「籌碼好」tab，顯示漲幅/量比/月線乖離率
 - main.py 已 include `chips_scan.router`
 
-### Feature 5：可轉債監控
+### Feature 5：可轉債監控（✅ 已完成，待部署）
 
-- 距賣回日 < 6 個月
-- 有銀行擔保
-- CB 現價 < 賣回價（正套利空間）
-- 年化報酬 > 10%
-- 資料：爬公開資訊觀測站（MOPS）
+- 資料源：TPEX OpenAPI `https://www.tpex.org.tw/openapi/v1/bond_ISSBD5_data`
+  - 含 `PutOptionDate`、`PutOptionPrice`、`Guaranteed`（1=銀行擔保）
+- 篩選：Guaranteed=1 + 距賣回日 < 180 天 + 年化報酬 > 1%（以面值100估算）
+- 現價假設：面值 100（實際成交價需自查；CB 近賣回日通常接近面值）
+- 後端：`stock_report/api/cb_scan.py`，路由 `/api/cb-scan`，TTL 1800s
+- 前端：第 8 個 tab「可轉債」，顯示代號/母股/賣回日/賣回價/現價/剩餘天/年化報酬
+- ⚠️ MOPS/TWSE/舊版 TPEX API 全部已失效，TPEX OpenAPI swagger.json 是目前唯一可用免費資料源
 
 ---
 

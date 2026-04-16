@@ -8,7 +8,7 @@ from zoneinfo import ZoneInfo
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from stock_report.api import chips_scan, disposition, institution_scan, pair_scan
+from stock_report.api import cb_scan, chips_scan, disposition, institution_scan, pair_scan
 from stock_report.api.routes import router
 from stock_report.api.ws import ws_router
 from stock_report.data.db import (
@@ -164,6 +164,7 @@ app.include_router(disposition.router)
 app.include_router(institution_scan.router)
 app.include_router(pair_scan.router)
 app.include_router(chips_scan.router)
+app.include_router(cb_scan.router)
 
 
 @app.get("/")

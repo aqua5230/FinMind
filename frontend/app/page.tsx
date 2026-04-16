@@ -2,12 +2,15 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
+  fetchCbScan,
   fetchChipsScan,
   fetchDispositionScan,
   fetchInstitutionScan,
   fetchPairScan,
   fetchRevenueScan,
   resolveStockId,
+  type CbScanResponse,
+  type CbScanResult,
   type ChipsScanResponse,
   type ChipsScanResult,
   type DispositionScanResponse,
@@ -44,7 +47,7 @@ const LOG_COLORS: Record<string, { text: string; bg: string }> = {
 };
 
 type WatchItem  = { stock_id: string; stock_name: string };
-type ActiveTab  = 'scan' | 'watch1' | 'watch2' | 'pair' | 'institution' | 'disposition' | 'chips';
+type ActiveTab  = 'scan' | 'watch1' | 'watch2' | 'pair' | 'institution' | 'disposition' | 'chips' | 'cb';
 type IconProps   = { size?: number; className?: string; strokeWidth?: number };
 
 function Icon({ size = 16, className, strokeWidth = 2, children }: IconProps & { children: React.ReactNode }) {
@@ -103,6 +106,10 @@ export default function Home() {
   const [chipsResults,        setChipsResults]        = useState<ChipsScanResult[]>([]);
   const [chipsScannedAt,      setChipsScannedAt]      = useState<string>('');
   const [chipsLoading,        setChipsLoading]        = useState(false);
+  const [cbResults,           setCbResults]           = useState<CbScanResult[]>([]);
+  const [cbScannedAt,         setCbScannedAt]         = useState<string>('');
+  const [cbLoading,           setCbLoading]           = useState(false);
+  const [cbError,             setCbError]             = useState<string>('');
   const [showPairGuide,       setShowPairGuide]       = useState(false);
   const [activeTab,           setActiveTab]           = useState<ActiveTab>('scan');
   const [watch1,              setWatch1]              = useState<WatchItem[]>([]);
@@ -210,6 +217,23 @@ export default function Home() {
       setChipsResults([]);
     } finally {
       setChipsLoading(false);
+    }
+  }, []);
+
+  const handleCbScan = useCallback(async () => {
+    setCbLoading(true);
+    setCbError('');
+    try {
+      const data: CbScanResponse = await fetchCbScan();
+      setCbResults(data.results);
+      setCbScannedAt(data.scanned_at);
+      if (data.error) setCbError(data.error);
+    } catch (e) {
+      console.error('CB scan error:', e);
+      setCbResults([]);
+      setCbError('API 連線失敗，請稍後再試');
+    } finally {
+      setCbLoading(false);
     }
   }, []);
 
@@ -447,7 +471,7 @@ export default function Home() {
           {/* Tab bar */}
           <div className="p-1.5 border-b border-white/5 bg-[#1a1f29]/50 shrink-0">
             <div className="flex gap-1">
-              {(['scan', 'watch1', 'watch2', 'pair', 'institution', 'disposition', 'chips'] as ActiveTab[]).map((tab, i) => (
+              {(['scan', 'watch1', 'watch2', 'pair', 'institution', 'disposition', 'chips', 'cb'] as ActiveTab[]).map((tab, i) => (
                 <button key={tab} type="button"
                   onClick={() => {
                     setActiveTab(tab);
@@ -460,6 +484,9 @@ export default function Home() {
                     if (tab === 'chips') {
                       handleChipsScan();
                     }
+                    if (tab === 'cb') {
+                      handleCbScan();
+                    }
                   }}
                   className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
                     activeTab === tab
@@ -467,7 +494,7 @@ export default function Home() {
                       : 'text-slate-500 hover:bg-white/5 hover:text-slate-300'
                   }`}
                 >
-                  {['策略掃描', '自選清單', '自選清單二', '雙刀掃描', '法人', '處置', '籌碼好'][i]}
+                  {['策略掃描', '自選清單', '自選清單二', '雙刀掃描', '法人', '處置', '籌碼好', '可轉債'][i]}
                 </button>
               ))}
             </div>
@@ -803,6 +830,77 @@ export default function Home() {
                           </td>
                           <td className={`px-2 py-3 text-right font-mono font-bold ${r.ma20_deviation >= 0 ? 'text-emerald-400' : 'text-rose-500'}`}>
                             {r.ma20_deviation >= 0 ? '+' : ''}{r.ma20_deviation.toFixed(1)}%
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </div>
+          )}
+          {activeTab === 'cb' && (
+            <div className="flex flex-col h-full">
+              <div className="flex items-center justify-between px-3 py-2 border-b border-[#222222]">
+                <span className="text-xs text-[#8e8e93]">
+                  {cbScannedAt ? `更新：${cbScannedAt.slice(0, 16).replace('T', ' ')}` : '可轉債監控'}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleCbScan}
+                  disabled={cbLoading}
+                  className="px-2 py-1 text-xs rounded border border-[#333] text-[#8e8e93] hover:text-white hover:border-[#555] transition-colors cursor-pointer disabled:opacity-40"
+                >
+                  {cbLoading ? '掃描中…' : '刷新'}
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto">
+                {cbLoading && cbResults.length === 0 ? (
+                  <div className="flex items-center justify-center h-full text-[#8e8e93] text-sm">
+                    <div className="w-5 h-5 rounded-full border-2 border-cyan-400/30 border-t-cyan-400 animate-spin" />
+                  </div>
+                ) : cbResults.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-full gap-2 px-4 text-center">
+                    <div className="text-[#8e8e93] text-sm">目前無符合條件的可轉債套利機會</div>
+                    {cbError && (
+                      <div className="text-amber-500/70 text-xs max-w-[260px] leading-relaxed">
+                        ⚠ {cbError}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <table className="w-full text-left border-collapse">
+                    <thead className="sticky top-0 bg-[#151921] z-10">
+                      <tr className="text-[10px] font-bold text-slate-500 uppercase tracking-widest border-b border-white/5">
+                        <th className="px-3 py-3">代號</th>
+                        <th className="px-2 py-3">母股</th>
+                        <th className="px-2 py-3">賣回日</th>
+                        <th className="px-2 py-3 text-right">賣回價</th>
+                        <th className="px-2 py-3 text-right">現價</th>
+                        <th className="px-2 py-3 text-right">剩餘天</th>
+                        <th className="px-3 py-3 text-right">年化報酬</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/[0.03]">
+                      {cbResults.map((r) => (
+                        <tr
+                          key={`${r.bond_id}-${r.put_date}`}
+                          onClick={() => openStock(r.stock_id, r.stock_name)}
+                          className="hover:bg-blue-600/5 transition-colors group cursor-pointer text-xs"
+                        >
+                          <td className="px-3 py-3 font-mono font-bold text-blue-400 group-hover:underline">{r.bond_id}</td>
+                          <td className="px-2 py-3 text-slate-200 group-hover:text-white">
+                            <div className="font-mono text-cyan-300">{r.stock_id}</div>
+                            <div className="max-w-[64px] truncate text-[11px] text-slate-500">{r.stock_name}</div>
+                          </td>
+                          <td className="px-2 py-3 text-slate-500 font-mono">{r.put_date.slice(5).replace('-', '/')}</td>
+                          <td className="px-2 py-3 text-right font-mono text-slate-300">{r.put_price.toFixed(2)}</td>
+                          <td className="px-2 py-3 text-right font-mono text-slate-300">{r.cb_price.toFixed(2)}</td>
+                          <td className={`px-2 py-3 text-right font-mono font-bold ${r.days_to_put <= 30 ? 'text-rose-500' : 'text-slate-300'}`}>
+                            {r.days_to_put}
+                          </td>
+                          <td className="px-3 py-3 text-right font-mono font-bold text-emerald-400">
+                            {(r.annualized_return * 100).toFixed(1)}%
                           </td>
                         </tr>
                       ))}

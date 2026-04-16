@@ -2,11 +2,14 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
+  fetchChipsScan,
   fetchDispositionScan,
   fetchInstitutionScan,
   fetchPairScan,
   fetchRevenueScan,
   resolveStockId,
+  type ChipsScanResponse,
+  type ChipsScanResult,
   type DispositionScanResponse,
   type DispositionScanResult,
   type InstitutionScanResponse,
@@ -41,7 +44,7 @@ const LOG_COLORS: Record<string, { text: string; bg: string }> = {
 };
 
 type WatchItem  = { stock_id: string; stock_name: string };
-type ActiveTab  = 'scan' | 'watch1' | 'watch2' | 'pair' | 'institution' | 'disposition';
+type ActiveTab  = 'scan' | 'watch1' | 'watch2' | 'pair' | 'institution' | 'disposition' | 'chips';
 type IconProps   = { size?: number; className?: string; strokeWidth?: number };
 
 function Icon({ size = 16, className, strokeWidth = 2, children }: IconProps & { children: React.ReactNode }) {
@@ -97,6 +100,9 @@ export default function Home() {
   const [dispositionResults,  setDispositionResults]  = useState<DispositionScanResult[]>([]);
   const [dispositionScannedAt,setDispositionScannedAt]= useState<string>('');
   const [dispositionLoading,  setDispositionLoading]  = useState(false);
+  const [chipsResults,        setChipsResults]        = useState<ChipsScanResult[]>([]);
+  const [chipsScannedAt,      setChipsScannedAt]      = useState<string>('');
+  const [chipsLoading,        setChipsLoading]        = useState(false);
   const [showPairGuide,       setShowPairGuide]       = useState(false);
   const [activeTab,           setActiveTab]           = useState<ActiveTab>('scan');
   const [watch1,              setWatch1]              = useState<WatchItem[]>([]);
@@ -190,6 +196,20 @@ export default function Home() {
       setDispositionResults([]);
     } finally {
       setDispositionLoading(false);
+    }
+  }, []);
+
+  const handleChipsScan = useCallback(async () => {
+    setChipsLoading(true);
+    try {
+      const data: ChipsScanResponse = await fetchChipsScan();
+      setChipsResults(data.results);
+      setChipsScannedAt(data.scanned_at);
+    } catch (e) {
+      console.error('Chips scan error:', e);
+      setChipsResults([]);
+    } finally {
+      setChipsLoading(false);
     }
   }, []);
 
@@ -427,7 +447,7 @@ export default function Home() {
           {/* Tab bar */}
           <div className="p-1.5 border-b border-white/5 bg-[#1a1f29]/50 shrink-0">
             <div className="flex gap-1">
-              {(['scan', 'watch1', 'watch2', 'pair', 'institution', 'disposition'] as ActiveTab[]).map((tab, i) => (
+              {(['scan', 'watch1', 'watch2', 'pair', 'institution', 'disposition', 'chips'] as ActiveTab[]).map((tab, i) => (
                 <button key={tab} type="button"
                   onClick={() => {
                     setActiveTab(tab);
@@ -437,6 +457,9 @@ export default function Home() {
                     if (tab === 'disposition') {
                       handleDispositionScan();
                     }
+                    if (tab === 'chips') {
+                      handleChipsScan();
+                    }
                   }}
                   className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
                     activeTab === tab
@@ -444,7 +467,7 @@ export default function Home() {
                       : 'text-slate-500 hover:bg-white/5 hover:text-slate-300'
                   }`}
                 >
-                  {['策略掃描', '自選清單', '自選清單二', '雙刀掃描', '法人', '處置'][i]}
+                  {['策略掃描', '自選清單', '自選清單二', '雙刀掃描', '法人', '處置', '籌碼好'][i]}
                 </button>
               ))}
             </div>
@@ -724,6 +747,65 @@ export default function Home() {
                           </tr>
                         );
                       })}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </div>
+          )}
+          {activeTab === 'chips' && (
+            <div className="flex flex-col h-full">
+              <div className="flex items-center justify-between px-3 py-2 border-b border-[#222222]">
+                <span className="text-xs text-[#8e8e93]">
+                  {chipsScannedAt ? `更新：${chipsScannedAt.slice(0, 16).replace('T', ' ')}` : '籌碼好掃描'}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleChipsScan}
+                  disabled={chipsLoading}
+                  className="px-2 py-1 text-xs rounded border border-[#333] text-[#8e8e93] hover:text-white hover:border-[#555] transition-colors cursor-pointer disabled:opacity-40"
+                >
+                  {chipsLoading ? '掃描中…' : '刷新'}
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto">
+                {chipsLoading && chipsResults.length === 0 ? (
+                  <div className="flex items-center justify-center h-full text-[#8e8e93] text-sm">
+                    <div className="w-5 h-5 rounded-full border-2 border-cyan-400/30 border-t-cyan-400 animate-spin" />
+                  </div>
+                ) : chipsResults.length === 0 ? (
+                  <div className="flex items-center justify-center h-full text-[#8e8e93] text-sm">點「刷新」開始掃描</div>
+                ) : (
+                  <table className="w-full text-left border-collapse">
+                    <thead className="sticky top-0 bg-[#151921] z-10">
+                      <tr className="text-[10px] font-bold text-slate-500 uppercase tracking-widest border-b border-white/5">
+                        <th className="px-3 py-3">代號</th>
+                        <th className="px-2 py-3">名稱</th>
+                        <th className="px-2 py-3 text-right">漲幅</th>
+                        <th className="px-2 py-3 text-right">量比</th>
+                        <th className="px-2 py-3 text-right">乖離</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/[0.03]">
+                      {chipsResults.map((r) => (
+                        <tr
+                          key={r.stock_id}
+                          onClick={() => openStock(r.stock_id, r.stock_name)}
+                          className="hover:bg-blue-600/5 transition-colors group cursor-pointer text-xs"
+                        >
+                          <td className="px-3 py-3 font-mono font-bold text-blue-400 group-hover:underline">{r.stock_id}</td>
+                          <td className="px-2 py-3 text-slate-200 group-hover:text-white max-w-[72px] truncate">{r.stock_name}</td>
+                          <td className="px-2 py-3 text-right font-mono font-bold text-emerald-400">
+                            +{r.change_pct.toFixed(1)}%
+                          </td>
+                          <td className="px-2 py-3 text-right font-mono text-amber-400">
+                            {r.volume_ratio.toFixed(1)}x
+                          </td>
+                          <td className={`px-2 py-3 text-right font-mono font-bold ${r.ma20_deviation >= 0 ? 'text-emerald-400' : 'text-rose-500'}`}>
+                            {r.ma20_deviation >= 0 ? '+' : ''}{r.ma20_deviation.toFixed(1)}%
+                          </td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 )}

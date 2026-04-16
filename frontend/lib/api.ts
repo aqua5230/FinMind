@@ -227,6 +227,28 @@ export async function fetchDispositionScan(): Promise<DispositionScanResponse> {
   return apiFetch<DispositionScanResponse>("/api/disposition-scan");
 }
 
+export type ChipsScanResult = {
+  stock_id: string;
+  stock_name: string;
+  change_pct: number;
+  volume_lot: number;
+  volume_ratio: number;
+  net_1d: number;
+  net_10d: number;
+  net_20d: number;
+  ma20_deviation: number;
+};
+
+export type ChipsScanResponse = {
+  scanned_at: string;
+  total_scanned: number;
+  results: ChipsScanResult[];
+};
+
+export async function fetchChipsScan(): Promise<ChipsScanResponse> {
+  return apiFetch<ChipsScanResponse>("/api/chips-scan");
+}
+
 export { API_URL };
 
 export async function fetchRealtimeBar(stockId: string): Promise<StockBar | null> {

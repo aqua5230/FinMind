@@ -3,13 +3,13 @@ from __future__ import annotations
 import asyncio
 from collections import defaultdict
 from datetime import date, datetime, timedelta
+import time
 from typing import Any
 
 from cachetools import TTLCache
 from fastapi import APIRouter
 from pydantic import BaseModel, ConfigDict
-
-from stock_report.api.finmind import FinMindClient
+import requests
 
 
 router = APIRouter()
@@ -18,11 +18,15 @@ LOOKBACK_CALENDAR_DAYS = 35
 RECENT_TRADING_DAYS = 20
 MIN_FOREIGN_CONSECUTIVE_BUY = 5
 MIN_TRUST_BUY_DAYS = 3
-FOREIGN_NAME = "外資及陸資(不含外資自營商)"
-TRUST_NAME = "投信"
+TWSE_T86_URL = "https://www.twse.com.tw/fund/T86"
+TWSE_T86_SLEEP_SECONDS = 0.5
+TWSE_T86_TIMEOUT_SECONDS = 10
+TWSE_T86_MAX_CONSECUTIVE_EMPTY = 3
 
-_finmind = FinMindClient()
-_institution_scan_cache: TTLCache[str, "InstitutionScanResponse"] = TTLCache(maxsize=1, ttl=3600)
+_institution_scan_cache: TTLCache[str, "InstitutionScanResponse"] = TTLCache(
+    maxsize=1,
+    ttl=3600,
+)
 _institution_scan_lock = asyncio.Lock()
 
 
@@ -51,8 +55,52 @@ def _as_float(value: Any) -> float:
         return 0.0
 
 
-def _net_buy_sell(row: dict[str, Any]) -> float:
-    return _as_float(row.get("buy")) - _as_float(row.get("sell"))
+def _fetch_t86(date_str: str) -> list[dict[str, Any]]:
+    try:
+        response = requests.get(
+            TWSE_T86_URL,
+            params={
+                "response": "json",
+                "date": date_str,
+                "selectType": "ALLBUT0999",
+            },
+            timeout=TWSE_T86_TIMEOUT_SECONDS,
+        )
+    except requests.RequestException:
+        time.sleep(TWSE_T86_SLEEP_SECONDS)
+        return []
+
+    time.sleep(TWSE_T86_SLEEP_SECONDS)
+
+    try:
+        payload = response.json()
+    except ValueError:
+        return []
+
+    rows = payload.get("data")
+    if payload.get("stat") != "OK" or not rows:
+        return []
+
+    results: list[dict[str, Any]] = []
+    for row in rows:
+        if not isinstance(row, list) or len(row) <= 10:
+            continue
+
+        stock_id = str(row[0]).strip()
+        stock_name = str(row[1]).strip()
+        if not stock_id:
+            continue
+
+        results.append(
+            {
+                "stock_id": stock_id,
+                "stock_name": stock_name,
+                "foreign_net": _as_float(row[4]),
+                "trust_net": _as_float(row[10]),
+            }
+        )
+
+    return results
 
 
 def _scan_institution_rows(rows: list[dict[str, Any]]) -> list[InstitutionScanResult]:
@@ -66,30 +114,26 @@ def _scan_institution_rows(rows: list[dict[str, Any]]) -> list[InstitutionScanRe
 
     results: list[InstitutionScanResult] = []
     for stock_id, stock_rows in grouped.items():
-        foreign_rows = sorted(
-            (row for row in stock_rows if str(row.get("name", "")).strip() == FOREIGN_NAME),
+        sorted_rows = sorted(
+            stock_rows,
             key=lambda item: str(item.get("date", "")),
             reverse=True,
         )
-        trust_rows = sorted(
-            (row for row in stock_rows if str(row.get("name", "")).strip() == TRUST_NAME),
-            key=lambda item: str(item.get("date", "")),
-            reverse=True,
-        )
-        recent_foreign_rows = foreign_rows[:RECENT_TRADING_DAYS]
-        recent_trust_rows = trust_rows[:RECENT_TRADING_DAYS]
-        if not recent_foreign_rows or not recent_trust_rows:
+        recent_rows = sorted_rows[:RECENT_TRADING_DAYS]
+        if not recent_rows:
             continue
 
         foreign_consecutive_buy = 0
-        for row in foreign_rows:
-            if _net_buy_sell(row) <= 0:
+        for row in sorted_rows:
+            if _as_float(row.get("foreign_net")) <= 0:
                 break
             foreign_consecutive_buy += 1
 
-        trust_buy_days = sum(1 for row in recent_trust_rows if _net_buy_sell(row) > 0)
+        trust_buy_days = sum(
+            1 for row in recent_rows if _as_float(row.get("trust_net")) > 0
+        )
         foreign_net_20d = int(
-            round(sum(_net_buy_sell(row) for row in recent_foreign_rows))
+            round(sum(_as_float(row.get("foreign_net")) for row in recent_rows))
         )
 
         if (
@@ -101,7 +145,8 @@ def _scan_institution_rows(rows: list[dict[str, Any]]) -> list[InstitutionScanRe
         results.append(
             InstitutionScanResult(
                 stock_id=stock_id,
-                stock_name=stock_id,
+                stock_name=str(sorted_rows[0].get("stock_name", stock_id)).strip()
+                or stock_id,
                 foreign_consecutive_buy=foreign_consecutive_buy,
                 trust_buy_days=trust_buy_days,
                 foreign_net_20d=foreign_net_20d,
@@ -121,12 +166,33 @@ def _scan_institution_rows(rows: list[dict[str, Any]]) -> list[InstitutionScanRe
 def _compute_institution_scan() -> InstitutionScanResponse:
     end_date = date.today()
     start_date = end_date - timedelta(days=LOOKBACK_CALENDAR_DAYS)
-    rows = _finmind.fetch(
-        "TaiwanStockInstitutionalInvestorsBuySell",
-        "",
-        start_date.isoformat(),
-        end_date.isoformat(),
-    )
+    rows: list[dict[str, Any]] = []
+    consecutive_empty = 0
+    current_date = start_date
+
+    while current_date <= end_date:
+        if current_date.weekday() >= 5:
+            current_date += timedelta(days=1)
+            continue
+
+        date_str = current_date.strftime("%Y%m%d")
+        daily_rows = _fetch_t86(date_str)
+        if not daily_rows:
+            consecutive_empty += 1
+            if consecutive_empty >= TWSE_T86_MAX_CONSECUTIVE_EMPTY:
+                raise RuntimeError(
+                    "[STOP] 原因: TWSE API 連續 3 次回傳非 OK 或空資料\n"
+                    "建議: 檢查 TWSE T86 API 狀態、日期格式或稍後重試"
+                )
+            current_date += timedelta(days=1)
+            continue
+
+        consecutive_empty = 0
+        for row in daily_rows:
+            rows.append({**row, "date": date_str})
+
+        current_date += timedelta(days=1)
+
     results = _scan_institution_rows(rows)
     return InstitutionScanResponse(
         scanned_at=datetime.now().replace(microsecond=0).isoformat(),

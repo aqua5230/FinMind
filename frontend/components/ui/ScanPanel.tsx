@@ -1,11 +1,16 @@
 "use client";
 
-import type { ScanResult } from "@/lib/api";
+type ScanPanelResult = {
+  stock_id: string;
+  stock_name: string;
+  signal_date: string;
+  days_ago: number;
+};
 
 type Props = {
   isLoading: boolean;
-  results: ScanResult[];
-  onSelect: (result: ScanResult) => void;
+  results: ScanPanelResult[];
+  onSelect: (result: ScanPanelResult) => void;
 };
 
 function formatDaysAgo(daysAgo: number): string {
@@ -19,10 +24,6 @@ export function ScanPanel({ isLoading, results, onSelect }: Props) {
         <p className="text-base text-[#8E8E93]">掃描中...</p>
       ) : results.length > 0 ? (
         <div className="flex flex-col gap-2">
-          <p className="text-xs text-[#8E8E93]">
-            訊號條件：RSI &lt; 30 且跌幅 ≥ 20%　｜　T+10 勝率{" "}
-            <span className="font-semibold text-[#00E5FF]">75.8%</span>（n=487）
-          </p>
           <div className="flex flex-wrap gap-2">
           {results.map((result) => (
             <button

@@ -1,6 +1,6 @@
 # SESSION.md — FinMind 專案狀態
 
-更新時間：2026-04-14（session 9 — 掃描器換成月營收動能，完成部署）
+更新時間：2026-04-16（session 15）
 
 ---
 
@@ -10,686 +10,199 @@
 FinMind/
 ├── stock_report/          ← FastAPI 後端
 │   ├── api/routes.py      ← 主要 API endpoints
-│   ├── api/scan.py        ← 掃描器 endpoint（新）
-│   └── data/tw_stocks.py  ← 台灣50+中型100股票清單（新）
+│   ├── api/scan.py        ← 月營收掃描（RSI 舊 route 已移除）
+│   ├── api/pair_scan.py   ← 雙刀配對掃描
+│   ├── api/institution_scan.py ← 法人籌碼掃描（待做）
+│   ├── api/ws.py          ← Fugle WebSocket
+│   └── data/
+│       ├── tw_stocks.py   ← 台股清單（TWSE+TPEX）
+│       ├── db.py          ← PostgreSQL 連線、月營收、價格
+│       └── price_sync.py  ← 每日批次價格同步
 ├── frontend/              ← Next.js 前端
-│   ├── components/chart/
-│   │   ├── CandlestickChart.tsx  ← K 線圖主元件（含訊號 overlay）
-│   │   └── KLinePanel.tsx        ← 工具列（分隔線優化）
-│   ├── components/ui/
-│   │   ├── SearchInput.tsx       ← 搜尋框（含放大鏡 icon）
-│   │   └── ScanPanel.tsx         ← 掃描結果面板（新）
-│   ├── components/layout/
-│   │   ├── AppHeader.tsx         ← Header（含掃描按鈕）
-│   │   └── StockInfoBar.tsx
-│   └── lib/
-│       ├── signals.ts    ← 訊號計算（BOLL+RSI+MACD+量能）
-│       └── api.ts        ← fetchScan() 等 API 函數
-├── backtest.py           ← Grid search 回測腳本
-└── SESSION.md            ← 本檔案
+│   ├── app/page.tsx       ← 首頁（量化終端機，含所有 tab）
+│   ├── lib/api.ts         ← API 函數
+│   ├── lib/signals.ts     ← 訊號計算
+│   └── lib/types.ts
+├── backtest_revenue.py    ← 月營收動能回測（現役）
+├── backtest_revenue.py    ← 月營收動能回測
+├── backtest_pairs.py      ← 雙刀配對回測（已完成，待執行）
+└── scripts/
+    ├── build_tw_universe.py
+    └── fetch_revenue.py
 ```
 
 ## 部署
 
-- 後端：Railway service = FinMind
-- 前端：Railway service = frontend
+- 後端 URL：`https://finmind-production-23fd.up.railway.app`
+- 前端 URL：`https://frontend-production-8b27.up.railway.app`
 - **部署指令（從專案根目錄）：**
-  - 前端：`./deploy.sh`（會驗證 bundle）
+  - 前端：`./deploy.sh`
   - 後端：`railway service FinMind && railway up`
 - ⚠️ 前後端是兩個獨立 service，各自需要部署
 
 ---
 
-## 當前階段：響應式版面修復（2026-04-15 完成部署）
+## 當前功能狀態（全部已部署）
 
-| 項目 | 狀態 | 說明 |
-|------|------|------|
-| 手機版垂直排版 | ✅ 完成 + 部署 | `flex-col md:flex-row`，市場卡片→日誌→Tab面板垂直排 |
-| Root 改 `min-h-screen` | ✅ 完成 + 部署 | 手機可捲動，桌面保留 `h-screen overflow-hidden` |
-| 右側面板手機全寬 | ✅ 完成 + 部署 | `w-full md:w-[450px]` |
-| 事件日誌手機高度 | ✅ 完成 + 部署 | `h-[260px] md:flex-1`，手機不會塌陷 |
-| Header 手機精簡 | ✅ 完成 + 部署 | 隱藏「系統連線正常」文字、搜尋欄縮短、按鈕縮小 |
-| 大螢幕限寬 | ✅ 完成 + 部署 | Main 加 `max-w-[1600px] mx-auto`，2K/4K 不拉爆 |
-| 市場卡片手機縮小 | ✅ 完成 + 部署 | padding/字型響應式縮放 |
+| 功能 | 狀態 |
+|------|------|
+| 月營收動能掃描 | ✅ 每月 12 日 10:00 自動更新，手動：`python3 /tmp/push_revenue_to_api.py` |
+| 雙刀配對掃描 | ⚠️ 保留為研究工具，回測不達標（最佳 Sharpe +0.10），**不可作為實盤訊號** |
+| 雙刀掃描說明面板 | ✅ ? 按鈕 + 偏離度判讀表 + 融券警語 |
+| 盤中即時股價 | ✅ `/api/realtime`（TWSE 免費 API），Fugle WebSocket 補強 |
+| Railway PostgreSQL | ✅ 月營收 169,689 筆，價格每日 16:30 同步 |
+| 法人籌碼掃描 | ✅ `/api/institution-scan`，TWSE T86 免費 API，TTL 3600s，已部署 |
 
 ---
 
-## 歷史：首頁排版 PRO QUANT v3.0（2026-04-15 完成部署）
+## 策略結論（重要，勿忘）
 
-| 項目 | 狀態 | 備注 |
-|------|------|------|
-| SearchInput 放大鏡 icon | ✅ 完成 | |
-| ChartControls 分隔線優化 | ✅ 完成 | 顏色 #636366 |
-| 訊號箭頭系統 | ✅ 完成 | 藍↑做多，條件同步 |
-| 回測最佳化 | ✅ 完成 | RSI<30 + 跌幅≥20%，n=487，T+10 75.8% |
-| 首頁改版：量化終端機風格 | ✅ 完成 + 部署 | 黑底螢光配色，左側大盤+日誌，右側K線/監控列表 |
-| 搜尋列整合確認＋掃描按鈕 | ✅ 完成 + 部署 | 同一排：input → [↵ 確認] [掃描] |
-| AppHeader 移除 | ✅ 完成 | 搜尋移入終端機首頁，AppHeader 不再使用於 page.tsx |
-| 字型放大 | ✅ 完成 + 部署 | 全面升一級（最小 13px，標題 28px）|
-| 首頁排版 PRO QUANT v3.0 | ✅ 完成 + 部署 | 深藍灰底(#0a0c10)，card 式大盤指數(含sparkline)，藍色 header+footer statusbar，全功能保留 |
-| 後端 /api/scan | ✅ 完成 + 部署 | 1075支（證交所動態），TTL快取10分鐘 |
-| 前端掃描器 UI | ✅ 完成 + 部署 | 點股票後面板保留，可直接切換 |
-| signals.ts 條件同步 | ✅ 完成 + 部署 | RSI<30 + 跌幅≥20%，移除 BOLL/MACD/short |
-| 股票清單動態化 | ✅ 完成 + 部署 | 證交所 openapi，850→1075支，TTL 1天 |
-| 玉山交易 SDK | ✅ 安裝完成 | esun_trade 2.2.0，模擬下單測試通過 |
-| 玉山行情 SDK | ✅ 安裝完成 | esun_marketdata 2.2.0 |
-| 玉山模擬下單 | ✅ 測試通過 | ret_code 000000，待申請正式金鑰 |
-| StockInfoBar 視覺強化 | ✅ 完成 + 部署 | 現價 text-4xl，漲跌幅改色塊 badge |
-| RSI 算法修正 | ✅ 完成 + 部署 | 改 Wilder's EMA，與後端 scan.py 同步，訊號箭頭可正確顯示 |
-| 全面 bug 修復（2026-04-12）| ✅ 完成 + 部署 | 見下方清單 |
-| cursor-crosshair → cursor-pointer | ✅ 完成 + 部署 | 監控列表/大盤指數/掃描結果，2026-04-12 |
+### RSI 策略 — 已廢棄，禁止實盤
 
-### 2026-04-12 修復清單（已全部部署）
-| 項目 | 說明 |
-|------|------|
-| tw_stocks.py `verify=False` | 移除 SSL 漏洞 |
-| scan.py / signals.ts 死碼 | 移除 BOLL/MACD/Volume 未使用的計算函數與常數 |
-| CandlestickChart.tsx 訊號條件 | SIGNAL_REQUIRED_INDICATORS 改為只需 `["RSI"]` |
-| .gitignore | 加入 `trading/config*.ini` 和 `*.p12` |
-| trading 路徑 bug | test_order.py / reset_password.py 改用 `Path(__file__).parent` |
-| requirements.txt | 補上 numpy / pandas / esun_trade / esun_marketdata |
-| fetchLatestPrice | 查詢區間 14 天縮短為 5 天 |
-| resolveStockId 搜尋 | 加入 startsWith 優先層（完全相符 > 開頭 > 包含）|
-| AppHeader 狀態提升 | searchValue 提升至 page.tsx，搜尋後清空，選掃描結果後填入代號 |
-| routes.py 冗餘過濾 | 移除 get_price 的多餘日期二次過濾 |
-
-### 2026-04-12 掃描穩定化（已全部部署）
-| 項目 | 說明 |
-|------|------|
-| Railway PostgreSQL | 新增 Postgres service，DATABASE_URL 注入後端 |
-| stock_report/data/db.py | 新增 DB 連線、init_db()、upsert_prices()、query_prices() |
-| stock_report/data/price_sync.py | 每日批次抓所有股票近150天資料存DB，含重試 |
-| scan.py | _fetch_stock_prices 改從 DB 讀，fallback yfinance |
-| main.py | 加 lifespan，啟動時 init_db + 首次同步，每天 16:30 自動更新 |
-| requirements.txt | 移除 esun_trade/esun_marketdata（Railway 找不到），加 psycopg2-binary/apscheduler |
-| 掃描預載 | page.tsx 頁面載入時背景 fetch，點按鈕瞬間顯示 |
-
-### 2026-04-12 session 2 完成（已全部部署）
-| 項目 | 說明 |
-|------|------|
-| 掃描穩定性強化 | db.py 加 get_latest_price_date()；main.py 改用 _should_run_initial_sync()，考慮台北時區+週末+16:30，資料過期才觸發同步 |
-| /api/db-status 端點 | routes.py 新增，回傳 has_price_data + latest_price_date，DB 掛掉回 503 |
-| 新分頁配色統一 | StockInfoBar / KLinePanel / PillButton 全面換成終端機風格（#050505 底、#222222 邊框、cyan #00E5FF、neon green/red 漲跌色）|
-
-### 2026-04-12 session 3（✅ 完成並部署）
-| 項目 | 狀態 | 說明 |
-|------|------|------|
-| T+10 勝率 badge | ✅ 完成 + 部署 | page.tsx line 387 加說明行 `T+10 勝率 75.8%（n=487）`，75.8% 用 cyan 強調 |
-| 根因：ScanPanel 是孤兒元件 | ✅ 已診斷 | 原本 badge 加在 `ScanPanel.tsx` 但全專案無人 import，page.tsx 自己 inline 渲染 scanResults；改到 page.tsx 真正渲染處才生效 |
-| deploy.sh 修復 | ✅ | 延長等待 90s、移除 grep 中斷 |
-| Railway 部署機制 | ✅ 驗證正常 | v2.6→v2.7 測試證明 chunk hash 會變，非快取問題；本次 `page-2432a986c46555de.js` 已含 75.8/n=487/勝率 |
-
-### 教訓
-- 改 UI 前先確認元件有被 import — 用 `grep -n "ComponentName"` 全專案搜，沒有就是孤兒
-- Railway 部署沒「卡快取」，是 source 改錯地方 — 之前耗費整個 session 排查假問題
-
-### 2026-04-13 session 4（✅ 完成並部署）
-| 項目 | 狀態 | 說明 |
-|------|------|------|
-| StockInfoBar 盤中不更新 bug | ✅ 修復 + 部署 | 原因：fetchLatestPrice 只抓一次 FinMind 昨收，盤中不會變；先加 30 秒輪詢證交所 API 作為快速修復 |
-| Fugle WebSocket 即時行情 | ✅ 完成 + 部署 | 取代 30 秒輪詢，盤中毫秒級推送 |
-| 後端 ws.py（新） | ✅ | WebSocket endpoint `/ws/realtime/{stock_id}`，連 Fugle 串流轉發前端 |
-| main.py 掛載 ws_router | ✅ | |
-| useRealtimeBar.ts | ✅ | HTTP 輪詢 → WebSocket，即時更新 K 線圖最後一根 bar |
-| stock/page.tsx | ✅ | 30 秒輪詢 → WebSocket，即時更新 StockInfoBar 現價/漲跌 |
-| Railway FUGLE_API_KEY | ✅ | 已設定環境變數 |
-| requirements.txt | ✅ | 加 websockets>=12.0 |
-
-### 2026-04-13 session 5（🚨 重大發現：策略實際虧錢）
-
-**backtest_v2.py 完成並執行，揭露之前 75.8% 勝率是誤導性指標。**
-
-| 指標 | 舊（T+10 死抱）| 新（真實模擬）|
-|------|---------------|---------------|
-| 勝率 | 75.8% | **29.2%** |
-| 年化報酬 | — | **-21.3%** |
-| 總報酬（2023-2025）| — | **-48.5%** |
-| Sharpe | — | **-1.01** |
-| Max Drawdown | — | **47.2%** |
-| Profit Factor | — | **0.43** |
-
-**為什麼 75.8% → 29.2%：**
-- 75.8% = 訊號觸發後死抱 10 天漲跌比例（不可執行，會凹單）
-- 29.2% = 加入停損 -10% / 停利 +20% / 移動停利 5% / 時間停損的真實勝率
-- 訊號觸發後常續跌 → 被停損 → 死抱的話 T+10 可能已反彈，產生假勝率
-- 贏家被停利截斷、輸家被停損砍掉，真實交易的不對稱性
-
-**backtest_v2.py 內容（新建）：**
-- 訊號：RSI<30 + 近20日高點跌幅≥20%
-- 進場：訊號隔日開盤價
-- 出場：停損/停利/移動停利/時間停損四擇一
-- 成本：買 0.1425% + 賣 0.1425% + 證交稅 0.3%
-- 資金：100萬起始、每筆 20%、最多 5 筆
-- Grid search：SL/TP/Trail/MaxHold 共 81 組合，train set 選最佳 → test set 驗證
-- 輸出：backtest_trades.csv + backtest_equity.png + 績效摘要
-
-**執行：**
-```bash
-# 需要 matplotlib：pip3 install matplotlib
-python3 backtest_v2.py
-```
-首跑用 400 支股票（/tmp/tw_universe_all.json 截取），完整 1956 支未跑。
-
-**已知問題：**
-- yfinance 對冷門股的 ticker fallback 可能回傳相同資料（trade log 中看到 1726/1727/1730/1731/1732 同日同價同結果）
-- 需要資料清洗過濾
-
-### 2026-04-13 session 6（📝 僅規劃，未派工）
-
-使用者選項 1（先做資料清洗）。Claude 額度剩 1%，只寫任務書，不派 Codex。
-
-**髒資料根因：** `backtest_v2.py` 的 `fetch_one` (line 133) 對同一 stock_id 先試 `.TW` 再試 `.TWO`，yfinance 對不存在的 ticker 有時回傳鄰近代號資料 → 1726/1727/1730/1731/1732 同日同價。且無 row-level sanity check。
-
-**清洗任務書（下個 session 直接派給 Codex 用）：**
-
-階段 1 — 改 `backtest_v2.py`，在 fetch 層加清洗：
-1. Universe 帶 market tag（TWSE/TPEX），fetch_one 依 market 選 suffix，不再 try both
-2. Row sanity：drop high<low / close<=0 / open<=0 / volume<0
-3. 漲跌幅檢查：|daily_return|>11% 異常列數 > 5 → 整檔丟棄
-4. 成交量：>=50% 天數 volume=0 → 丟棄
-5. 覆蓋度：<120 天 → 丟棄（已有）
-6. 指紋去重：close[-200:] SHA1 相同組只留 stock_id 最小者
-
-階段 2 — 輸出 `/tmp/clean_report.json`：
-`{input, kept, dropped:{insufficient_data, bad_rows, volume, limit_violation, duplicate}, duplicates:[[ids],...]}`
-
-階段 3 — 重跑回測，比對 train/test signals 數與 test 績效，確認壞訊號消失。
-
-**Universe 重建：** tw_stocks.py 已能分別抓 TWSE/TPEX，需要在 `/tmp/tw_universe_builder.py` 把 market 欄位寫入 `/tmp/tw_universe_all.json`。
-
-### 2026-04-13 session 7（✅ Codex 完成資料清洗 + 本地行情快取）
-
-**這段給下一位 Claude/Codex 先讀：資料清洗任務已經完成，不要再照 session 6 任務書重做。**
-
-完成內容：
-1. `stock_report/data/tw_stocks.py`
-   - 新增 `get_tw_stocks(verify_ssl=True)`，回傳 `{id, name, market}`。
-   - `market` 會標記 `TWSE` / `TPEX`。
-   - `get_tw_stock_ids()` 保持向後相容，只回傳股票代號。
-   - 2026-04-13 補修：TPEX API 欄位是英文 `SecuritiesCompanyCode` / `CompanyAbbreviation`，原本 parser 只吃 TWSE 中文欄位，導致 universe 只有 1075 檔 TWSE。已修正 `_parse_stock_rows()` 同時支援 TWSE/TPEX 欄位。
-
-2. `scripts/build_tw_universe.py`（新檔）
-   - 產出 `/tmp/tw_universe_all.json`。
-   - 本機 Python 對 TWSE/TPEX 憑證驗證會失敗，所以腳本支援 `--insecure` 作為離線建 universe 用：
-     `python3 scripts/build_tw_universe.py --insecure`
-   - 已成功產出 1956 檔股票 universe：TWSE 1075 + TPEX 881。
-
-3. `backtest_v2.py`
-   - `fetch_one()` 不再同一檔 `.TW` / `.TWO` 都試。
-   - 改用 universe 的 `market` 決定 yfinance suffix：
-     - `TWSE` → `.TW`
-     - `TPEX` → `.TWO`
-   - 新增資料清洗：
-     - row sanity：移除 `high < low`、`open/high/low/close <= 0`、`volume < 0`、OHLC 不一致列。
-     - 漲跌幅檢查：`abs(daily_return) > 11%` 超過 5 天則整檔丟棄。
-     - 成交量檢查：`volume == 0` 天數比例 >= 50% 則整檔丟棄。
-     - 覆蓋度：少於 `MIN_DATA_DAYS=120` 丟棄。
-     - 指紋去重：`close[-200:]` SHA1 相同組只保留 stock_id 最小者。
-   - 新增 `/tmp/clean_report.json`。
-   - 新增 progress output：每 50 檔印一次 `Fetched X/Y stocks; valid=N`。
-   - `MAX_WORKERS` 改為 1。原因：實測 yfinance/curl 高併發會污染資料，曾出現 311 檔 duplicate；單線程後 duplicate=0。
-
-4. 本地行情快取
-   - 新增 `PRICE_CACHE_DIR = data/price_cache`。
-   - `fetch_one()` 會先讀 parquet 快取；沒有或覆蓋不足才抓 yfinance。
-   - 抓到資料後寫入 parquet：`data/price_cache/{stock_id}_{market}.parquet`。
-   - `.gitignore` 已加入 `data/price_cache/`，避免提交 79MB 行情資料。
-   - 2026-04-13 已補抓完整 1956 檔 universe；本地快取目前約 1934 個 parquet、141MB。
-   - 已用完整上市+上櫃 universe 跑完 `python3 backtest_v2.py`，`fetch_error=0`。
-   - `data/price_cache/` 已被 `.gitignore` 排除，不要提交。
-
-**最新清洗報告（完整 1956 檔上市+上櫃 universe，補抓 TPEX 後）：**
-```json
-{
-  "input": 1956,
-  "kept": 1801,
-  "dropped": {
-    "insufficient_data": 42,
-    "bad_rows": 1450,
-    "volume": 0,
-    "limit_violation": 113,
-    "duplicate": 0,
-    "missing_market": 0,
-    "fetch_error": 0
-  },
-  "duplicates": []
-}
-```
-
-**最新真實回測結果（完整 1956 檔上市+上櫃 universe，清洗 + 本地快取後）：**
 | 指標 | 結果 |
 |------|------|
-| Train signals | 26338 |
-| Test signals | 9624 |
-| Best train params | SL=5%, TP=20%, Trail=8%, MaxHold=10 |
-| Test trades | 456 |
-| 勝率 | 34.87% |
-| 總報酬 | -22.56% |
+| 勝率（真實含停損停利）| 34.87% |
 | 年化報酬 | -8.20% |
-| Profit Factor | 0.93 |
 | Max Drawdown | 50.36% |
 | Sharpe | -0.30 |
 
-**重要結論：**
-- 資料清洗後，1726/1727/1730/1731/1732 這種重複髒資料問題已解決。
-- 舊報告的 1075 檔不是完整台股，只是 TWSE；完整 universe 已修成並補抓到 1956 檔（TWSE 1075 + TPEX 881）。
-- 完整 universe 後虧損縮小，但仍是負報酬、Profit Factor < 1；目前 RSI<30 + 跌幅≥20% 策略仍是負期望值。
-- 不要實盤，不要 paper trading。下一步應先改策略。
-- 前端若仍顯示 `T+10 勝率 75.8%`，必須移除或改成真實回測指標，否則誤導。
+**「T+10 持有勝率 75.8%」是誤導性指標，不可作為實盤依據。**
 
-**下個 session 建議順序：**
-1. HIGH：移除首頁/掃描 UI 的 `T+10 勝率 75.8%` 或任何類似文案。
-2. HIGH：策略改進，不要再跑原策略：
-   - 加大盤濾網：只在加權指數站上 200MA 或市場 regime 轉強時交易。
-   - 加進場確認：跌深後隔日/數日收復短均、放量反轉、突破前高才進。
-   - 加流動性濾網：排除低價、低成交額、小型冷門股。
-   - 減少同一檔連續觸發：加入 cooldown。
-   - 研究停損/停利邏輯是否造成當日進出過多。
-3. MED：把 `backtest_v2.py` 拆成資料層/策略層/回測引擎，方便測多策略。
-4. MED：建立快取更新腳本，只補最新交易日，不重抓全量。
+- `/api/scan` 舊掃描 route 已移除。
+- 前端 `fetchScan()` / `scanResults` 已移除。
+- 舊回測檔（`backtest.py`、`backtest_v2.py`、`grid_search.py`、相關 csv/png）已刪除。
 
-### 2026-04-14 session 8（✅ 月營收動能策略完成）
-
-**策略：月營收動能 + TWII 200MA 大盤濾網**
+### 月營收動能策略 — 目前掃描器使用中
 
 | 指標 | Train (2019-2022) | Test (2023-2025) |
 |------|------------------|-----------------|
 | 年化報酬 | 13.8% | **29.1%** |
 | Sharpe | 0.86 | **1.74** |
 | Max Drawdown | -12.5% | **-13.3%** |
-| Profit Factor | 2.32 | **3.68** |
-| 總報酬 | 63.9% | 106.1% |
 
-**與 RSI 舊策略對比：Sharpe -0.30 → 1.74，MaxDD -50.4% → -13.3%**
-
-**新增檔案：**
-- `scripts/fetch_revenue.py` — 從 FinMind 拉月營收快取（已跑完，1928/1934 支成功）
-- `backtest_revenue.py` — 月營收動能回測引擎（含 TWII 200MA 濾網）
-- `data/revenue_cache/` — 月營收 parquet 快取（~1928 個檔案，已加入 .gitignore）
-- `revenue_backtest_equity.png` — equity curve
-- `revenue_backtest_trades.csv` — 16,074 筆交易記錄
-
-**策略邏輯：**
-- 訊號：每月 RevenueYoY 前 20%（流動性濾網：日均成交額 > 500 萬）
-- 再平衡日：每月 11 日（下一個交易日）
-- 大盤濾網：TWII < 200MA 時不持股，持現金
-- 成本：買 0.1425% + 賣 0.1425% + 證交稅 0.3%
-
-### 下一步優先事項
-
-| 優先度 | 項目 | 說明 |
-|--------|------|------|
-| **HIGH** | 掃描器換成月營收動能 | 分三步（見下方詳細任務） |
-| **MED** | Paper trading 驗證 | 每月 11 日記錄名單，追蹤 3-6 個月實際表現 |
-| **MED** | 策略穩健性測試 | 排除電子股後重測，確認非純 AI 多頭效應 |
-| **LOW** | 當沖策略研究 | 月營收策略穩定後再考慮 |
+- 訊號：RevenueYoY 前 20%，流動性 > 500 萬
+- 大盤濾網：TWII < 200MA 時不持股
 
 ---
 
-## Session 9 已完成：掃描器換成月營收動能（✅ 部署完畢）
+## 下個 Session 優先任務
 
-### 完成清單
-| 項目 | 狀態 | 備注 |
-|------|------|------|
-| db.py 月營收表 + 函數 | ✅ 部署 | stock_revenue_monthly, upsert_revenue, query_revenue_yoy_bulk, query_stock_avg_turnover |
-| scan.py /revenue-scan endpoint | ✅ 部署 | YoY≤10倍過濾，大盤200MA，流動性≥500萬，名稱自動 fetch |
-| routes.py /admin/load-revenue | ✅ 部署 | 本地 HTTP 推送月營收用 |
-| frontend api.ts | ✅ 部署 | RevenueScanResult / fetchRevenueScan |
-| frontend page.tsx | ✅ 部署 | 掃描tab改顯示YoY/排名，移除days_ago |
-| 月營收資料匯入 | ✅ 完成 | 1928支×~88筆 = 169,689筆，HTTP POST推送至Railway DB |
-| 生產驗證 | ✅ | market_filter=pass, 78支結果，top: 國光生+537.9%、南亞科+364.9%、緯創+194.6% |
-| 月營收自動更新 | ✅ 部署 | APScheduler 每月 12 日 10:00 台北自動同步，斷點續跑 |
+| 優先度 | 項目 | 說明 |
+|--------|------|------|
+| **HIGH** | 處置股追蹤（Feature 2） | 規格完成，可直接派 Codex |
+| **LOW** | 籌碼好掃描增強（Feature 4） | 量比>2、漲幅>5%、主力三週期全正 |
+| **LOW** | 可轉債監控（Feature 5） | 爬 MOPS，距賣回<6個月+有擔保+折價 |
 
-### 注意事項
-- **自動更新**：每月 12 日 10:00 台北時間後端會自動同步上月月營收（無需手動）
-- 若要手動補資料或緊急更新：`python3 /tmp/push_revenue_to_api.py`
-- YoY 上限設 10x（+1000%）過濾異常極值
-- /api/scan（舊RSI策略）仍保留但前端已不使用
-- 自動更新進度會寫入後端 log（Railway → Logs）
+---
 
-## Session 10 已完成：盤中股價不更新修復（✅ 部署完畢）
+## backtest_pairs.py 現有參數
 
-更新時間：2026-04-15
-
-### 根本原因（三層問題）
-| 問題 | 說明 |
-|------|------|
-| 盤中顯示昨收、永遠不動 | `fetchLatestPrice` 從 DB 抓歷史 K 線，DB 每日 16:30 才更新，盤中沒有今天資料 |
-| 漲跌幅基準錯誤 | 盤中 `last`=昨收、`prev`=前天收，prevClose 算出來是前天收盤，漲跌幅用錯基準 |
-| Fugle WebSocket 無推送 | `ws.py` 送 auth 後未等回應就立即送 subscribe，Fugle 在驗證完成前忽略訂閱 |
-
-### 修復清單
-| 檔案 | 改動 |
-|------|------|
-| `stock_report/api/routes.py` | `/api/realtime/{stock_id}` 補回傳 `prev_close`（TWSE `y` 欄位 = 昨收） |
-| `frontend/lib/api.ts` | `fetchLatestPrice` 盤中改呼叫 `/api/realtime`；失敗或盤後 fallback 歷史 K 線 |
-| `stock_report/api/ws.py` | Fugle auth 後等待 `authenticated` 事件確認再送 subscribe |
-
-### 注意事項
-- `/api/realtime` 用 TWSE 免費 API（`mis.twse.com.tw`），不需 Fugle key，盤中可靠
-- Fugle WebSocket（ws.py）還是保留，作為推送即時成交的補強；修好後應能運作
-- **驗證時間：4/15 開盤後（9:00+）打開股票頁面確認現價是否即時更新**
-
-## Session 11 進行中：月營收資料補抓（背景執行中）
-
-更新時間：2026-04-15
-
-### 問題根因
-| 問題 | 說明 |
-|------|------|
-| 掃描器最新月份卡在 2025/11 | `fetch_revenue.py` 在 session 8 時只抓到 2025/11 |
-| APScheduler 錯過觸發 | Session 9（4/14）部署時，4/12 觸發點已過，202512~202603 全部漏同步 |
-| 缺少月份 | 202512、202601、202602、202603（共 4 個月） |
-
-### 修復方式
-- 新建 `/tmp/backfill_revenue.py`：從 FinMind 抓缺失 4 個月，POST 到 Railway
-- 背景執行中：PID 7928，進度記錄在 `/tmp/backfill_revenue.log`
-- 斷點可續跑（重跑自動跳過已完成）
-- FinMind 確認有 202512 / 202601 / 202602 / 202603 資料
-
-### 確認指令
-```bash
-tail /tmp/backfill_revenue.log        # 查進度
-ps aux | grep backfill_revenue        # 確認仍在執行
+```python
+ENTRY_Z        = 1.5   # Gemini 建議 2.0（台股假突破多）
+MAX_HOLD_DAYS  = 15    # Gemini 建議 20-40
+STOP_LOSS_PCT  = -0.05 # 缺 Z-score 停損，建議補 Z=3.5 門檻
 ```
 
-### 完成後
-- 重新點掃描器，最新月份應更新至 2026/03
-- 掃描器有 24h TTL 快取（`_revenue_scan_cache`），若需立即生效需重啟後端
+Gemini 建議：雙重停損（Z=3.5 + 虧損 5-10%）
 
-## Session 12 進行中：權證小哥影片策略實作（2026-04-15 啟動）
+---
 
-### 來源影片
-「權證小哥｜揭密「神秘分點」建倉清單！大戶撤資潮下的逆勢鎖碼股」
+## 待做 Feature 規格
 
-### 影片策略完整分析
+### Feature 2：處置股追蹤（規格完成，待開工）
 
-| 功能 | 影片說明 | 資料需求 | 可行性 | 狀態 |
-|------|----------|----------|--------|------|
-| **雙刀配對掃描** | 找高相關股對，偏差>閾值時空強買弱 | 現有 price_cache | ✅ 可做 | ⏳ 待做（Codex flag 打錯未執行）|
-| **處置股追蹤** | 快被關股票清單（聽牌條件）+被關後拉回買點 | TWSE 公開 API | ✅ 可做 | ⏳ 待做 |
-| **法人籌碼掃描** | 三大法人持續淨買超（分點替代方案） | FinMind 免費 | ✅ 可做 | ⏳ 待做 |
-| **籌碼好掃描增強** | 量比>2、均線協率、主力三週期全正 | 現有 price_cache | ✅ 可做 | ⏳ 待做 |
-| **可轉債監控** | 找快到期、有擔保、折價 CB（賣回套利） | 爬 MOPS | ⚠️ 需爬蟲 | ⏳ 待做 |
-| **神秘分點** | 券商分點買賣超（原大系列等） | FinMind Sponsor 付費 | ❌ 需付費 | 暫不做 |
-| **期貨價差套利** | 正逆價差比、結算日套力 | Fugle 期貨 API | ❌ 複雜 | 暫不做 |
+- 資料來源：TWSE 免費 API `https://www.twse.com.tw/zh/api/getDisposition`
+  （FinMind `TaiwanStockDispositionSecuritiesPeriod` 為付費，不用）
+- 新增 `stock_report/api/disposition.py`
+- 掃描條件：
+  - `days_to_release <= 5`（快出獄）
+  - 處置期間最大跌幅 < -8%（價沒崩）
+  - 處置期間均量 < 處置前20日均量 × 0.5（量縮）
+- 回傳欄位：`stock_id`、`stock_name`、`disposition_start`、`disposition_end`、`days_to_release`、`price_change_during`、`volume_ratio`
+- 路由：`GET /api/disposition-scan`，TTL 3600
+- 前端：新增「處置」tab，K 線圖加灰色底色標記
 
-### Feature 1：雙刀配對掃描（⏳ 待做）
+### Feature 3：法人籌碼掃描（✅ 已完成部署）
 
-**Codex 失敗原因：** flag 打錯 `--approval-mode` → 應為 `-a auto-edit`，啟動即報錯，未執行任何改動。
-**正確 Codex 指令：**
-```bash
-cd /Users/lollapalooza/Desktop/FinMind && cat /tmp/pair_scan_task.md | codex -a auto-edit -q
-```
-**任務書位置：** `/tmp/pair_scan_task.md`（401 行，本 session 已寫好）
+- 資料來源：TWSE T86 免費 API（原 FinMind 需付費，已棄用）
+- 端點：`GET https://www.twse.com.tw/fund/T86?response=json&date=YYYYMMDD&selectType=ALLBUT0999`
+- 欄位：`[0]`股票代號、`[1]`股票名稱、`[4]`外資淨買賣超、`[10]`投信淨買賣超
+- 掃描邏輯：外資連買 ≥5 天 + 近 20 日投信買超 ≥3 天
+- TTL 快取 3600s，第一次請求約 13 秒（25 交易日 × 0.5s sleep）
 
-**核心邏輯：**
-- 算法：90 天 rolling 相關係數 ≥ 0.75 → 入選配對
-- 偏差率 = (近5日價差 - 歷史均值) / 歷史標準差
-- +σ = A 相對過強 → 建議「空A 買B」
-- TTL 快取 1 小時
+### Feature 4：籌碼好掃描增強
 
-**新增檔案：**
-- `stock_report/api/pair_scan.py` — 配對計算 router
-- `stock_report/data/db.py` — 新增 `query_prices_bulk_recent()`
-
-**前端：**
-- `frontend/app/page.tsx` — 新增第四個 tab「雙刀掃描」
-- `frontend/lib/api.ts` — 新增 `fetchPairScan()`
-
-**驗證方式（做完後必須跑）：**
-- 寫 `backtest_pairs.py`，回測歷史上偏差收斂的勝率與 P&L
-- 不回測就不知道有沒有用
-- 參考 `backtest_v2.py` 的框架
-
-### Feature 2：處置股追蹤（待做）
-
-**影片說的機制：**
-1. 連續兩天漲停 or 達異常條件 → 明天進入「處置」
-2. 「聽牌條件」：明天跌4%以內（不漲）也會被關
-3. 被關後拉回 → 買點
-4. 處置神器顯示：哪些股票明天「聽牌」、距處置差什麼條件
-
-**資料來源：**
-- TWSE 處置名單：`https://www.twse.com.tw/rwd/zh/trading/disposedStock`（公開免費）
-- 距處置條件：從現有 price_cache 算漲跌停連計
-
-**新增：**
-- `stock_report/api/disposition.py` — 爬 TWSE + 計算聽牌條件
-- 前端新增「處置」tab 或 badge
-
-### Feature 3：法人籌碼掃描（待做）
-
-**邏輯：**
-- `TaiwanStockInstitutionalInvestorsBuySell`（FinMind 免費）
-- 外資連續 N 日淨買超 + 投信加碼 → 訊號
-- 結合月營收 YoY 做交叉驗證 → 更強訊號
-
-### Feature 4：籌碼好掃描增強（待做）
-
-**影片精確條件：**
 ```
 成交量 > 300 張
 漲幅 > 5%
 量比 > 2（今日量 / N 日均量）
-主力 1日/10日/20日 全正（用三大法人淨買超替代）
-月線協率由小→大排序（找剛突破月線的）
+主力 1日/10日/20日 全正（三大法人淨買超替代）
+月線協率由小→大排序
 ```
 
-### Feature 5：可轉債監控（待做）
+### Feature 5：可轉債監控
 
-**篩選條件：**
 - 距賣回日 < 6 個月
-- 有銀行擔保（有擔保 > 無擔保）
+- 有銀行擔保
 - CB 現價 < 賣回價（正套利空間）
 - 年化報酬 > 10%
-
-**資料：** 爬公開資訊觀測站（MOPS）CB 公告
-
-### 雙刀回測設計（Feature 1 做完後接著做）
-
-**新建 `backtest_pairs.py`，框架如下：**
-
-```
-對每個時間點 T（rolling，以月為步進）：
-  1. 用 T-90~T 的 price_cache 找高相關對（corr >= 0.75）
-  2. 偏差率 > 1.5σ → 模擬進場（空A買B or 空B買A）
-  3. 偏差收斂至 0 → 出場
-  4. 超過 15 天未收斂 or 虧損 > 5% → 停損出場
-  5. 成本：兩邊各 0.1425% + 證交稅 0.3%（賣出方）+ 融券費
-
-目標指標：勝率、年化報酬、Sharpe、MaxDD、平均持倉天數
-```
-
-**資料來源：** 本地 `data/price_cache/*.parquet`（1935 檔，已含歷史）
-**參考框架：** `backtest_v2.py`（已有 grid search、停損停利、equity curve 輸出）
-**驗證目標：** Sharpe > 0.5、MaxDD < 20%、勝率 > 45% 才值得上線
-
-**注意：** 融券不一定借得到，回測結果要打折看。
+- 資料：爬公開資訊觀測站（MOPS）
 
 ---
 
-## Session 12 完成內容（2026-04-15）
+## backtest_pairs.py 狀態
 
-### 雙刀配對掃描（✅ 完成部署）
+- 成功標準：Sharpe > 0.5、MaxDD < 20%、勝率 > 45%
+- 輸出：`pairs_backtest_trades.csv`、`pairs_backtest_equity.png`
 
-| 項目 | 狀態 | 說明 |
-|------|------|------|
-| `stock_report/api/pair_scan.py` | ✅ 部署 | 90天相關係數≥0.75，z-score偏差，TTL 1hr快取，TOP_N=30 |
-| `stock_report/data/db.py` | ✅ 部署 | 新增 `query_prices_bulk_recent(days=130)` |
-| `main.py` | ✅ 部署 | include_router(pair_scan.router) |
-| `frontend/lib/api.ts` | ✅ 部署 | PairScanResult / PairScanResponse / fetchPairScan |
-| `frontend/app/page.tsx` | ✅ 部署 | 第四 tab「雙刀掃描」，刷新按鈕，點股票用 openStock |
-| 偏差率公式修正 | ✅ Claude review | Codex 用 cumsum 錯誤，修正為 z-score = (recent_mean - hist_mean) / hist_std |
+### Baseline 結果（ENTRY_Z=1.5、MAX_HOLD=15、STOP_LOSS=-5%）
 
-### 掃描 UI 統一（✅ 完成部署）
+| 指標 | Train | Test |
+|------|-------|------|
+| Sharpe | 差 | **-0.84** ❌ |
+| MaxDD | — | -19.33% ✅ |
+| 勝率 | — | 49.61% ✅ |
 
-| 項目 | 說明 |
-|------|------|
-| Header「掃描」按鈕 | ✅ 移除 |
-| 策略掃描 tab 加「刷新」按鈕 | ✅ 同雙刀掃描樣式，含更新時間顯示 |
-| handleScan 移除 guard | ✅ 原本有 `if (results.length > 0) return` 導致無法手動刷新，已移除 |
+**結論：Sharpe 為負，不達標，不可上線。**
 
-### Codex 呼叫問題修正
+### Grid Search 結果（27 組，已完成）
 
-- **根因**：任務書「停損條件」有 3 個 STOP 觸發點，Codex 照格式執行就中途問問題
-- **修正**：任務書移除 STOP 區塊，改為「遇到問題自行判斷繼續」
-- **正確指令**：`cat task.md | codex exec --full-auto -`（不是 `codex -a auto-edit -q`）
+| 組合 | EntryZ | MaxHold | StopLoss | Test Sharpe | Test MaxDD | Test 勝率 |
+|------|--------|---------|----------|-------------|------------|----------|
+| 最佳 Sharpe | 2.5 | 20 | 5% | **+0.10** | -4.9% | 60.7% |
+| Train 最佳 | 2.5 | 30 | 8% | +0.01 | -5.2% | 60.4% |
 
-### 後端 URL 備忘
+**結論：全部 27 組均未達標（Sharpe > 0.5）。雙刀配對策略不可實盤。**
 
-- 後端正確 URL：`https://finmind-production-23fd.up.railway.app`（不是 finmind-production）
-- 前端 URL：`https://frontend-production-8b27.up.railway.app`
+輸出檔案：`pairs_gs_results.csv`、`pairs_gs_best_equity.png`、`pairs_gs_best_trades.csv`
 
----
+### 後續研究方向（若要繼續）
 
-## 下個 session 優先任務
-
-| 優先度 | 項目 | 說明 |
-|--------|------|------|
-| **HIGH** | 雙刀回測 `backtest_pairs.py` | 驗證配對策略有沒有用，Sharpe>0.5 / MaxDD<20% / 勝率>45% 才上線 |
-| **MED** | 處置股追蹤 | TWSE 公開 API + price_cache 算聽牌條件，新 tab 或 badge |
-| **MED** | 法人籌碼掃描 | FinMind TaiwanStockInstitutionalInvestorsBuySell，外資連續淨買超 |
-| **LOW** | 籌碼好掃描增強 | 量比>2、漲幅>5%、主力三週期全正 |
-| **LOW** | 可轉債監控 | 爬 MOPS，距賣回<6個月+有擔保+折價 |
+- 檢查交易成本是否侵蝕獲利
+- 台股放空可行性（融券限制）
+- pair selection 改良（產業群聚污染問題）
+- 縮小宇宙至同產業配對
 
 ---
 
-## 舊的下個 session 任務（已完成）：掃描器換成月營收動能
-
-### 背景
-- 現有掃描：RSI < 30 + 跌幅 ≥ 20%（已證實年化 -8.20%，廢棄）
-- 目標掃描：月營收 YoY 前 20%（Test Sharpe 1.74，年化 29.1%）
-- 本地已有 revenue_cache（1928 支 parquet），Railway DB 目前無月營收資料
-
-### ↓ 以下為舊任務書，已執行完畢 ↓
-
-### Step 1 — DB 加月營收表 + 匯入資料
-**改 `stock_report/data/db.py`：**
-新增 `stock_revenue_monthly` 表：
-```sql
-CREATE TABLE IF NOT EXISTS stock_revenue_monthly (
-  stock_id TEXT,
-  revenue_month TEXT,  -- 格式 YYYYMM
-  revenue BIGINT,      -- 千元
-  updated_at TIMESTAMP DEFAULT NOW(),
-  PRIMARY KEY (stock_id, revenue_month)
-)
-```
-新增函數：
-- `upsert_revenue(stock_id, revenue_month, revenue)`
-- `query_revenue(stock_id, months=24)` → list of {revenue_month, revenue}
-- `query_revenue_latest_yoy()` → 所有股票最新月份的 YoY（bulk query，供掃描用）
-
-**新增 `scripts/import_revenue_to_db.py`：**
-- 讀 `data/revenue_cache/*.parquet`
-- 批次 upsert 進 Railway PostgreSQL
-- 需要 `DATABASE_URL` 環境變數（從 `.env` 讀）
-- 印進度，可重跑（upsert 幂等）
-
-### Step 2 — scan.py 換成月營收動能
-**改 `stock_report/api/scan.py`：**
-- 新 endpoint `GET /api/revenue-scan`（或直接取代 `/api/scan`）
-- 邏輯：
-  1. 查 DB 取所有股票最近 13 個月營收
-  2. 計算 `RevenueYoY = 當月 / 去年同月 - 1`
-  3. 流動性濾網：排除近 20 日日均成交額 < 500 萬的股票（從 price DB 查）
-  4. 按 YoY 排名，取前 20%
-  5. 加 TWII 200MA 濾網（可選，若大盤空頭則回傳空結果或警示）
-- Response model 新增 `revenue_yoy: float`，移除 `signal_date / days_ago`
-- TTL cache 改為 24 小時（月營收每月一次，不需要 10 分鐘刷新）
-
-### Step 3 — 前端顯示更新
-**改 `frontend/app/page.tsx`：**
-- 掃描結果改顯示：股票代號、名稱、YoY（格式 `+12.3%`）、排名
-- 移除 `days_ago` 欄位
-- 訊號條件文字改為：`月營收動能｜YoY 前 20%｜大盤 200MA 以上`
-
-### 注意事項
-- `scripts/` 在 `.gitignore`，import 腳本本地跑即可，不需部署
-- Railway 需設 `FINMIND_TOKEN` 環境變數（已設）
-- 每月 11 日後需手動或自動重跑 `fetch_revenue.py` + `import_revenue_to_db.py` 更新資料
-- 禁止改 `CandlestickChart.tsx`、`KLinePanel.tsx`
-
-### 核心教訓
+## 核心教訓
 
 1. **勝率 ≠ 賺錢** — 任何只看勝率不看盈虧比的回測都是自欺
 2. **「T+X 持有勝率」是外行指標** — 實際停損停利後會劇烈改變
-3. **工具的價值在於揭露真相** — backtest_v2 寧可現在揭露-48%，不要拿真金白銀去發現
-4. **不要把實盤建立在未經完整模擬的策略上** — 策略改到穩定正報酬前，一塊錢都不該進場
-
-### 待處理（session 4 之後）
-| 項目 | 優先度 | 說明 |
-|------|--------|------|
-| Fugle WebSocket 多人共用連線 | LOW | 目前每個使用者各開一條連線，基本用戶限 1 連線；多人用需改成後端共用一條連線 + 多訂閱 |
-| 訊號記錄系統 | MED | 進場日/股票/價格 → T+10 追蹤，驗證策略持續有效性 |
-| 申請玉山正式 API 金鑰 | LOW | esun_trade 只能本地用，Railway 上需另外處理（暫緩） |
+3. **改 UI 前先確認元件有被 import** — 用 `grep -n "ComponentName"` 全專案搜
+4. **不要把實盤建立在未經完整模擬的策略上**
 
 ---
 
-## 回測現況（2026-04-11 更新）
+## 工作流規則
 
-### 已完成
-- 建立可交易宇宙：TWSE+TPEX 公開 API → yfinance 篩選日均成交 > 1000萬 → **559 支**
-- 資料來源切換：FinMind（API 配額耗盡）→ **yfinance**
-- Train/Test 分割方式修正：股票分割（❌ 過擬合）→ **時間分割（✅）**
-  - Train：2021-2023（3 年）
-  - Test：2024-2025（2 年）
-- Grid search 參數（64 組合）：rsi / vol / twii / dd 四個維度
-
-### 回測結果（2026-04-11）
-| 改動 | 內容 |
-|------|------|
-| 訊號條件 | RSI<30 + 跌幅≥20%（移除量能條件）|
-| 掃描宇宙 | 100支 → **850支**（TWSE+TPEX，日均成交>100萬，排除ETF）|
-| 資料來源 | FinMind → **yfinance**（無配額限制）|
-| 統計依據 | 799支股票 × 7年，n=487 test，T+20 勝率 **75.8%** |
-
-### 工具檔案
-- `/tmp/tw_universe_all.json` — 857 支完整宇宙（含ETF）
-- `/tmp/tw_universe_builder.py` — 重建宇宙腳本（MIN_TURNOVER=1M，OUTPUT_PATH=tw_universe_all.json）
-- `backtest.py` — 單次回測（yfinance，時間分割）
-- `grid_search.py` — Grid search（START=2019-01-01，split=2022-01-01，60組合）
-- `/tmp/test_rs35_dd20.py` — 驗證不同參數組合的 Test 勝率腳本
-
-### 下一步
-- 申請玉山正式 API 金鑰
-- 整合掃描器 → 自動下單流程
-- 建立訊號記錄系統（進場日、股票、價格 → T+10 追蹤）
-- 考慮把 T+10 勝率 75.8% 顯示在掃描結果 UI 上
-
----
-
-## 根因分析（歷史）
-
-### Bug 1-4
-見原始 SESSION.md 內容（2026-04-05 ~ 2026-04-10）
-
----
-
-## 工作流規則（嚴格執行）
-
-- Claude 只出任務單，不讀程式碼、不自己改（例外：production debug）
-- 程式碼任務 → `codex exec --full-auto --skip-git-repo-check`
+- 程式碼任務 → `cat task.md | codex exec --full-auto -`
 - 查資料/跑腳本 → `gemini -p "..." --model gemini-2.5-pro --yolo`
-- 驗收 → tsc --noEmit + 線上 bundle 驗證
-- **部署** → `./deploy.sh`（前端）、`railway service FinMind && railway up`（後端）
-
----
+- 驗收 → `tsc --noEmit` + 線上 bundle 驗證
+- 部署 → `./deploy.sh`（前端）、`railway service FinMind && railway up`（後端）
 
 ## 禁止碰的地方
 
 - `railway up` 不能從 `frontend/` 目錄執行
 - `CandlestickChart.tsx` chart 繪製邏輯（已穩定）
 - `KLinePanel.tsx` handler 邏輯
-
----
-
-## 核心檔案（下個 session 優先讀）
-
-1. `frontend/app/page.tsx` — 首頁（量化終端機設計，含搜尋/掃描/K線/監控列表）
-2. `frontend/lib/signals.ts` — 訊號條件（RSI<30 + 跌幅≥20%）
-3. `stock_report/api/scan.py` — 掃描邏輯（同上條件）
-4. `stock_report/data/tw_stocks.py` — 動態抓取證交所股票清單
-5. `trading/test_order.py` — 玉山模擬下單測試
-6. `trading/config.simulation.ini` — 玉山模擬環境設定

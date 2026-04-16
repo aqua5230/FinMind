@@ -2,14 +2,17 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  API_URL as API_BASE,
+  fetchDispositionScan,
+  fetchInstitutionScan,
   fetchPairScan,
-  fetchScan,
   fetchRevenueScan,
   resolveStockId,
+  type DispositionScanResponse,
+  type DispositionScanResult,
+  type InstitutionScanResponse,
+  type InstitutionScanResult,
   type PairScanResponse,
   type PairScanResult,
-  type ScanResult,
   type RevenueScanResult,
 } from "@/lib/api";
 
@@ -38,8 +41,7 @@ const LOG_COLORS: Record<string, { text: string; bg: string }> = {
 };
 
 type WatchItem  = { stock_id: string; stock_name: string };
-type ActiveTab  = 'scan' | 'watch1' | 'watch2' | 'pair';
-type SignalStats = { total: number; resolved: number; pending: number; wins: number; win_rate_pct: number };
+type ActiveTab  = 'scan' | 'watch1' | 'watch2' | 'pair' | 'institution' | 'disposition';
 type IconProps   = { size?: number; className?: string; strokeWidth?: number };
 
 function Icon({ size = 16, className, strokeWidth = 2, children }: IconProps & { children: React.ReactNode }) {
@@ -83,15 +85,19 @@ export default function Home() {
   const [time,                setTime]                = useState('');
   const [error,               setError]               = useState('');
   const [isScanning,          setIsScanning]          = useState(false);
-  const [scanResults,         setScanResults]         = useState<ScanResult[]>([]);
   const [revenueScanResults,  setRevenueScanResults]  = useState<RevenueScanResult[]>([]);
   const [revenueScanMarket,   setRevenueScanMarket]   = useState<string>('unknown');
   const [revenueScanAt,       setRevenueScanAt]       = useState<string>('');
   const [pairResults,         setPairResults]         = useState<PairScanResult[]>([]);
   const [isPairScanning,      setIsPairScanning]      = useState(false);
   const [pairComputedAt,      setPairComputedAt]      = useState<string>('');
+  const [institutionResults,  setInstitutionResults]  = useState<InstitutionScanResult[]>([]);
+  const [institutionScannedAt,setInstitutionScannedAt]= useState<string>('');
+  const [institutionLoading,  setInstitutionLoading]  = useState(false);
+  const [dispositionResults,  setDispositionResults]  = useState<DispositionScanResult[]>([]);
+  const [dispositionScannedAt,setDispositionScannedAt]= useState<string>('');
+  const [dispositionLoading,  setDispositionLoading]  = useState(false);
   const [showPairGuide,       setShowPairGuide]       = useState(false);
-  const [signalStats,         setSignalStats]         = useState<SignalStats | null>(null);
   const [activeTab,           setActiveTab]           = useState<ActiveTab>('scan');
   const [watch1,              setWatch1]              = useState<WatchItem[]>([]);
   const [watch2,              setWatch2]              = useState<WatchItem[]>([]);
@@ -112,18 +118,9 @@ export default function Home() {
     return () => clearInterval(timer);
   }, []);
 
-  useEffect(() => { fetchScan().then(s => setScanResults(s.results)).catch(() => {}); }, []);
-
   useEffect(() => {
     fetchRevenueScan()
       .then(r => { setRevenueScanResults(r.results); setRevenueScanMarket(r.market_filter); })
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    fetch(`${API_BASE}/api/signals/stats`)
-      .then(res => res.ok ? res.json() as Promise<SignalStats> : null)
-      .then(stats => setSignalStats(stats))
       .catch(() => {});
   }, []);
 
@@ -166,6 +163,33 @@ export default function Home() {
       setPairResults([]);
     } finally {
       setIsPairScanning(false);
+    }
+  }, []);
+
+  const handleInstitutionScan = useCallback(async () => {
+    setInstitutionLoading(true);
+    try {
+      const data: InstitutionScanResponse = await fetchInstitutionScan();
+      setInstitutionResults(data.results);
+      setInstitutionScannedAt(data.scanned_at);
+    } catch (e) {
+      console.error('Institution scan error:', e);
+    } finally {
+      setInstitutionLoading(false);
+    }
+  }, []);
+
+  const handleDispositionScan = useCallback(async () => {
+    setDispositionLoading(true);
+    try {
+      const data: DispositionScanResponse = await fetchDispositionScan();
+      setDispositionResults(data.results);
+      setDispositionScannedAt(data.scanned_at);
+    } catch (e) {
+      console.error('Disposition scan error:', e);
+      setDispositionResults([]);
+    } finally {
+      setDispositionLoading(false);
     }
   }, []);
 
@@ -403,16 +427,24 @@ export default function Home() {
           {/* Tab bar */}
           <div className="p-1.5 border-b border-white/5 bg-[#1a1f29]/50 shrink-0">
             <div className="flex gap-1">
-              {(['scan', 'watch1', 'watch2', 'pair'] as ActiveTab[]).map((tab, i) => (
+              {(['scan', 'watch1', 'watch2', 'pair', 'institution', 'disposition'] as ActiveTab[]).map((tab, i) => (
                 <button key={tab} type="button"
-                  onClick={() => setActiveTab(tab)}
+                  onClick={() => {
+                    setActiveTab(tab);
+                    if (tab === 'institution') {
+                      handleInstitutionScan();
+                    }
+                    if (tab === 'disposition') {
+                      handleDispositionScan();
+                    }
+                  }}
                   className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
                     activeTab === tab
                       ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20'
                       : 'text-slate-500 hover:bg-white/5 hover:text-slate-300'
                   }`}
                 >
-                  {['策略掃描', '自選清單', '自選清單二', '雙刀掃描'][i]}
+                  {['策略掃描', '自選清單', '自選清單二', '雙刀掃描', '法人', '處置'][i]}
                 </button>
               ))}
             </div>
@@ -437,14 +469,6 @@ export default function Home() {
                 )}
                 <span className="text-xs text-slate-500 ml-auto">共 {revenueScanResults.length} 支</span>
               </div>
-
-              {signalStats !== null && signalStats.resolved > 0 && (
-                <div className="px-4 py-2 border-b border-white/5 text-xs text-slate-400 shrink-0 tracking-wider">
-                  策略追蹤：{signalStats.resolved} 筆已結算，勝率{' '}
-                  <span className="text-blue-400">{signalStats.win_rate_pct}%</span>
-                  <span className="text-slate-600 ml-2">({signalStats.pending} 筆追蹤中)</span>
-                </div>
-              )}
 
               {revenueScanMarket === 'block' && (
                 <div className="px-4 py-2 bg-rose-500/10 border-b border-rose-500/20 text-rose-400 text-xs tracking-wider shrink-0">
@@ -600,6 +624,110 @@ export default function Home() {
                   </table>
                 </div>
               )}
+            </div>
+          )}
+          {activeTab === 'institution' && (
+            <div className="flex flex-col h-full">
+              <div className="flex items-center justify-between px-3 py-2 border-b border-[#222222]">
+                <span className="text-xs text-[#8e8e93]">
+                  {institutionScannedAt ? `更新：${institutionScannedAt.slice(0, 16).replace('T', ' ')}` : '法人連買篩選'}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleInstitutionScan}
+                  disabled={institutionLoading}
+                  className="px-2 py-1 text-xs rounded border border-[#333] text-[#8e8e93] hover:text-white hover:border-[#555] transition-colors cursor-pointer disabled:opacity-40"
+                >
+                  {institutionLoading ? '掃描中…' : '刷新'}
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto">
+                {institutionLoading && institutionResults.length === 0 ? (
+                  <div className="flex items-center justify-center h-full text-[#8e8e93] text-sm">掃描中…</div>
+                ) : institutionResults.length === 0 ? (
+                  <div className="flex items-center justify-center h-full text-[#8e8e93] text-sm">點「刷新」開始掃描</div>
+                ) : (
+                  institutionResults.map((r) => (
+                    <div
+                      key={r.stock_id}
+                      onClick={() => openStock(r.stock_id, r.stock_name)}
+                      className="flex items-center justify-between px-3 py-2 border-b border-[#111] hover:bg-[#1a1d27] cursor-pointer"
+                    >
+                      <div>
+                        <span className="text-sm font-medium text-white">{r.stock_id}</span>
+                        <span className="ml-2 text-xs text-[#8e8e93]">{r.stock_name}</span>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-xs text-[#00E5FF]">外資連買 {r.foreign_consecutive_buy} 日</div>
+                        <div className="text-xs text-[#8e8e93]">
+                          投信 {r.trust_buy_days} 日 ｜ 外資20日 {r.foreign_net_20d > 0 ? '+' : ''}{r.foreign_net_20d.toLocaleString()} 張
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+          {activeTab === 'disposition' && (
+            <div className="flex flex-col h-full">
+              <div className="flex items-center justify-between px-3 py-2 border-b border-[#222222]">
+                <span className="text-xs text-[#8e8e93]">
+                  {dispositionScannedAt ? `更新：${dispositionScannedAt.slice(0, 16).replace('T', ' ')}` : '處置股追蹤'}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleDispositionScan}
+                  disabled={dispositionLoading}
+                  className="px-2 py-1 text-xs rounded border border-[#333] text-[#8e8e93] hover:text-white hover:border-[#555] transition-colors cursor-pointer disabled:opacity-40"
+                >
+                  {dispositionLoading ? '掃描中…' : '刷新'}
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto">
+                {dispositionLoading ? (
+                  <div className="flex items-center justify-center h-full text-[#8e8e93] text-sm">
+                    <div className="w-5 h-5 rounded-full border-2 border-cyan-400/30 border-t-cyan-400 animate-spin" />
+                  </div>
+                ) : dispositionResults.length === 0 ? (
+                  <div className="flex items-center justify-center h-full text-[#8e8e93] text-sm">目前無符合條件的處置股</div>
+                ) : (
+                  <table className="w-full text-left border-collapse">
+                    <thead className="sticky top-0 bg-[#151921] z-10">
+                      <tr className="text-[10px] font-bold text-slate-500 uppercase tracking-widest border-b border-white/5">
+                        <th className="px-3 py-3">代號</th>
+                        <th className="px-2 py-3">名稱</th>
+                        <th className="px-2 py-3">處置迄日</th>
+                        <th className="px-2 py-3 text-right">剩餘</th>
+                        <th className="px-2 py-3 text-right">期間漲跌</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/[0.03]">
+                      {dispositionResults.map((r) => {
+                        const isUrgent = r.days_to_release <= 3;
+                        const isUp = r.price_change_during >= 0;
+                        return (
+                          <tr
+                            key={`${r.stock_id}-${r.disposition_end}`}
+                            onClick={() => openStock(r.stock_id, r.stock_name)}
+                            className="hover:bg-blue-600/5 transition-colors group cursor-pointer text-xs"
+                          >
+                            <td className="px-3 py-3.5 font-mono font-bold text-blue-400 group-hover:underline">{r.stock_id}</td>
+                            <td className="px-2 py-3.5 text-slate-200 group-hover:text-white">{r.stock_name}</td>
+                            <td className="px-2 py-3.5 text-slate-500 font-mono">{r.disposition_end.slice(5).replace('-', '/')}</td>
+                            <td className={`px-2 py-3.5 text-right font-mono font-bold ${isUrgent ? 'text-rose-500' : 'text-slate-300'}`}>
+                              {r.days_to_release} 天
+                            </td>
+                            <td className={`px-2 py-3.5 text-right font-mono font-bold ${isUp ? 'text-emerald-400' : 'text-rose-500'}`}>
+                              {isUp ? '+' : ''}{r.price_change_during.toFixed(1)}%
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                )}
+              </div>
             </div>
           )}
         </div>

@@ -1,18 +1,5 @@
 import type { LatestPrice, PriceResponse, StockBar } from "@/lib/types";
 
-export type ScanResult = {
-  stock_id: string;
-  stock_name: string;
-  signal_date: string;
-  days_ago: number;
-};
-
-export type ScanResponse = {
-  scanned_at: string;
-  total_scanned: number;
-  results: ScanResult[];
-};
-
 function normalizeApiUrl(value: string | undefined): string {
   if (!value) {
     return "";
@@ -136,10 +123,6 @@ export async function fetchLatestPrice(stockId: string): Promise<LatestPrice | n
   }
 }
 
-export async function fetchScan(): Promise<ScanResponse> {
-  return apiFetch<ScanResponse>("/api/scan");
-}
-
 function normalizeInput(input: string): string {
   return input
     .replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xFEE0))
@@ -205,6 +188,43 @@ export interface PairScanResponse {
 
 export async function fetchPairScan(): Promise<PairScanResponse> {
   return apiFetch<PairScanResponse>("/api/pair-scan");
+}
+
+export type InstitutionScanResult = {
+  stock_id: string;
+  stock_name: string;
+  foreign_consecutive_buy: number;
+  trust_buy_days: number;
+  foreign_net_20d: number;
+};
+
+export type InstitutionScanResponse = {
+  scanned_at: string;
+  total_scanned: number;
+  results: InstitutionScanResult[];
+};
+
+export async function fetchInstitutionScan(): Promise<InstitutionScanResponse> {
+  return apiFetch<InstitutionScanResponse>("/api/institution-scan");
+}
+
+export type DispositionScanResult = {
+  stock_id: string;
+  stock_name: string;
+  disposition_start: string;
+  disposition_end: string;
+  days_to_release: number;
+  price_change_during: number;
+};
+
+export type DispositionScanResponse = {
+  scanned_at: string;
+  total_scanned: number;
+  results: DispositionScanResult[];
+};
+
+export async function fetchDispositionScan(): Promise<DispositionScanResponse> {
+  return apiFetch<DispositionScanResponse>("/api/disposition-scan");
 }
 
 export { API_URL };

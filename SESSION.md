@@ -1,6 +1,6 @@
 # SESSION.md — FinMind 專案狀態
 
-更新時間：2026-04-16（session 18，Feature 5 可轉債監控完成）
+更新時間：2026-04-24（session 20，技術債清理第一輪）
 
 ---
 
@@ -48,7 +48,7 @@ FinMind/
 |------|------|
 | 月營收動能掃描 | ✅ 每月 12 日 10:00 自動更新，手動：`python3 /tmp/push_revenue_to_api.py` |
 | 雙刀配對掃描 | ⚠️ 保留為研究工具，回測不達標（最佳 Sharpe +0.10），**不可作為實盤訊號** |
-| 雙刀掃描說明面板 | ✅ ? 按鈕 + 偏離度判讀表 + 融券警語 |
+| 全 tab 說明面板 | ✅ 所有 7 個 tab 均有 ? 按鈕 + 說明面板（策略邏輯、篩選條件、注意事項）|
 | 盤中即時股價 | ✅ `/api/realtime`（TWSE 免費 API），Fugle WebSocket 補強 |
 | Railway PostgreSQL | ✅ 月營收 169,689 筆，價格每日 16:30 同步 |
 | 法人籌碼掃描 | ✅ `/api/institution-scan`，TWSE T86 免費 API，TTL 3600s，已部署 |
@@ -214,3 +214,30 @@ Gemini 建議：雙重停損（Z=3.5 + 虧損 5-10%）
 - `railway up` 不能從 `frontend/` 目錄執行
 - `CandlestickChart.tsx` chart 繪製邏輯（已穩定）
 - `KLinePanel.tsx` handler 邏輯
+
+---
+
+## 2026-04-24 技術債清理（第一輪）
+
+**已清**
+- 過期 AI 協作殘留：`000.md`、`SESSION_CODEX.md`、`SESSION_GEMINI.md`、`shared_context.md`、`codex_arch_review.md`、`gemini_security_review.md`、`TASK_LOG.md`（後兩個 git rm）
+- Next.js 預設素材：`frontend/public/{next,vercel,file,globe,window}.svg`
+- 自動生成檔：所有 `__pycache__/`（10 個）、`.DS_Store`、`frontend/tsconfig.tsbuildinfo`
+- `.gitignore` 整理：移除 `codex_arch_review.md`、`shared_context.md`；新增 `frontend/tsconfig.tsbuildinfo`、`backtests/outputs/`
+- 回測輸出歸檔：10 個 `*_trades.csv` / `*_equity.png` / `*_report.json` 從 root 搬到 `backtests/outputs/`（已 gitignore）
+
+**驗證**
+- `python3 -c "import main"` 通過
+- `frontend` tsc --noEmit 通過
+- `pytest tests/` 18/18 通過
+
+**待使用者決定（下一輪）**
+- 個股報告管線整條移除（`POST /api/report`、`GET /api/report/{id}`、`stock_report/cli.py`、`services/report_service.py`、`report/generator.py`、`api/deepseek.py`、`api/gemini.py`，前端零引用）
+- `twse_broker.py` 根目錄孤兒檔
+- `台股量化交易策略研究報告.md`、`三竹股市說明書.pdf` 處置
+- `backtest_pairs.py`、`grid_search_pairs.py`、`backtest_strength_pullback.py` 是否 commit + 搬 `backtests/`
+- Spec 同步：`specs/roadmap.md` / `current-state.md` 把處置股、可轉債從「Phase 3 延後」改為「已完成部署」
+- `tests/` 當前被 gitignore，等於無 CI 把關
+
+**注意**
+- 各 backtest 腳本（如 `backtest_strength_pullback.py` L50-52）仍寫死輸出檔名為相對路徑，下次執行會再生在 root。需一併改成寫入 `backtests/outputs/`。

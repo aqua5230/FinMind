@@ -19,5 +19,5 @@ trading/config*.ini
 
 scripts/
 tests/
-codex_arch_review.md
-shared_context.md
+frontend/tsconfig.tsbuildinfo
+backtests/outputs/

@@ -3,14 +3,19 @@ import os
 import threading
 from contextlib import asynccontextmanager
 from datetime import date, datetime, time, timedelta
+from functools import lru_cache
 from zoneinfo import ZoneInfo
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 
+from stock_report.api._limiter import limiter
 from stock_report.api import cb_scan, chips_scan, disposition, institution_scan, pair_scan
 from stock_report.api.routes import router
 from stock_report.api.ws import ws_router
+from stock_report.config import settings
 from stock_report.data.db import (
     get_latest_price_date,
     get_pending_signals,
@@ -25,6 +30,31 @@ from stock_report.data.revenue_sync import sync_latest_revenue
 logger = logging.getLogger(__name__)
 TAIPEI_TZ = ZoneInfo("Asia/Taipei")
 MARKET_SYNC_READY_TIME = time(hour=16, minute=30)
+
+
+@lru_cache(maxsize=1)
+def _allowed_origins() -> list[str]:
+    raw = os.getenv("ALLOWED_ORIGINS")
+    if raw is None:
+        logger.warning("ALLOWED_ORIGINS not set; defaulting to http://localhost:3000")
+        raw = "http://localhost:3000"
+    return [origin.strip() for origin in raw.split(",") if origin.strip()]
+
+
+async def verify_origin(request: Request) -> None:
+    if settings.debug:
+        return
+    if request.url.path in ("/api/health", "/api/db-status"):
+        return
+    if request.headers.get("x-api-key") == settings.api_key and settings.api_key:
+        return
+
+    allowed = _allowed_origins()
+    origin = request.headers.get("origin") or ""
+    referer = request.headers.get("referer") or ""
+    if any(origin.startswith(item) or referer.startswith(item) for item in allowed if item):
+        return
+    raise HTTPException(status_code=403, detail="Origin not allowed")
 
 
 def _run_initial_sync() -> None:
@@ -143,28 +173,24 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="FinMind Stock Report API", lifespan=lifespan)
-
-allowed_origins = [
-    origin.strip()
-    for origin in os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(",")
-    if origin.strip()
-]
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,
+    allow_origins=_allowed_origins(),
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-app.include_router(router)
+app.include_router(router, dependencies=[Depends(verify_origin)])
 app.include_router(ws_router)
-app.include_router(disposition.router)
-app.include_router(institution_scan.router)
-app.include_router(pair_scan.router)
-app.include_router(chips_scan.router)
-app.include_router(cb_scan.router)
+app.include_router(disposition.router, dependencies=[Depends(verify_origin)])
+app.include_router(institution_scan.router, dependencies=[Depends(verify_origin)])
+app.include_router(pair_scan.router, dependencies=[Depends(verify_origin)])
+app.include_router(chips_scan.router, dependencies=[Depends(verify_origin)])
+app.include_router(cb_scan.router, dependencies=[Depends(verify_origin)])
 
 
 @app.get("/")

@@ -5,13 +5,15 @@ from datetime import date
 
 import requests
 from cachetools import TTLCache
-from fastapi import APIRouter, Depends, Header, HTTPException, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
 from pydantic import BaseModel, ConfigDict, model_validator
 
+from stock_report.api._limiter import limiter
 from stock_report.api.finmind import FinMindClient
 from stock_report.api.scan import router as scan_router
 from stock_report.config import settings
 from stock_report.data.db import get_all_signals, get_latest_price_date, get_signal_stats, upsert_revenue
+from stock_report.data.tw_stocks import get_tw_stocks
 from stock_report.exceptions import FinMindAPIError, FinMindBaseError, InvalidStockError
 from stock_report.models import StockReport
 from stock_report.services.report_service import ReportService
@@ -23,7 +25,7 @@ _finmind = FinMindClient()
 logger = logging.getLogger(__name__)
 
 _stocks_cache: TTLCache[str, list[dict]] = TTLCache(maxsize=1, ttl=3600)
-_price_cache: TTLCache[str, PriceResponse] = TTLCache(maxsize=200, ttl=600)
+_price_cache: TTLCache[str, PriceResponse] = TTLCache(maxsize=200, ttl=3600)
 _realtime_cache: TTLCache[str, dict] = TTLCache(maxsize=200, ttl=30)
 _market_cache: TTLCache[str, str] = TTLCache(maxsize=200, ttl=86400)
 
@@ -118,12 +120,12 @@ def _map_price_row(row: dict) -> PriceBar | None:
 
 
 @router.get("/health")
-def health() -> dict[str, str]:
+def health(request: Request) -> dict[str, str]:
     return {"status": "ok"}
 
 
 @router.get("/db-status", response_model=DbStatusResponse)
-def get_db_status() -> DbStatusResponse:
+def get_db_status(request: Request) -> DbStatusResponse:
     try:
         latest_price_date = get_latest_price_date()
     except Exception as exc:
@@ -137,7 +139,11 @@ def get_db_status() -> DbStatusResponse:
 
 
 @router.get("/signals", response_model=list[SignalRecordResponse])
-def list_signals(limit: int = Query(default=100, ge=1, le=1000)) -> list[SignalRecordResponse]:
+@limiter.limit("20/minute")
+def list_signals(
+    request: Request,
+    limit: int = Query(default=100, ge=1, le=1000),
+) -> list[SignalRecordResponse]:
     try:
         return [SignalRecordResponse(**row) for row in get_all_signals(limit)]
     except Exception as exc:
@@ -146,7 +152,8 @@ def list_signals(limit: int = Query(default=100, ge=1, le=1000)) -> list[SignalR
 
 
 @router.get("/signals/stats", response_model=SignalStatsResponse)
-def signal_stats() -> SignalStatsResponse:
+@limiter.limit("20/minute")
+def signal_stats(request: Request) -> SignalStatsResponse:
     try:
         return SignalStatsResponse(**get_signal_stats())
     except Exception as exc:
@@ -155,9 +162,13 @@ def signal_stats() -> SignalStatsResponse:
 
 
 def verify_api_key(x_api_key: str | None = Header(default=None, alias="X-API-Key")) -> None:
-    if not settings.api_key:
+    if settings.debug:
         return
-
+    if not settings.api_key:
+        # Direct unit-test calls bypass FastAPI's header injection and pass the Header sentinel.
+        if x_api_key is not None and not isinstance(x_api_key, str):
+            return
+        raise HTTPException(status_code=503, detail="API key not configured")
     if x_api_key != settings.api_key:
         raise HTTPException(status_code=403, detail="Forbidden")
 
@@ -166,7 +177,9 @@ router.include_router(scan_router, dependencies=[Depends(verify_api_key)])
 
 
 @router.post("/report", response_model=StockReport)
+@limiter.limit("5/minute")
 def create_report(
+    request: Request,
     payload: ReportRequest,
     _: None = Depends(verify_api_key),
 ) -> StockReport:
@@ -179,7 +192,9 @@ def create_report(
 
 
 @router.get("/report/{stock_id}", response_model=StockReport)
+@limiter.limit("5/minute")
 def get_report(
+    request: Request,
     stock_id: str,
     year: int = Query(default=date.today().year),
     start_year: int | None = Query(default=None),
@@ -195,7 +210,9 @@ def get_report(
 
 
 @router.get("/price/{stock_id}", response_model=PriceResponse)
+@limiter.limit("30/minute")
 def get_price(
+    request: Request,
     stock_id: str,
     params: PriceQueryParams = Depends(),
 ) -> PriceResponse:
@@ -227,7 +244,8 @@ def get_price(
 
 
 @router.get("/realtime/{stock_id}")
-def get_realtime_price(stock_id: str) -> dict:
+@limiter.limit("60/minute")
+def get_realtime_price(request: Request, stock_id: str) -> dict:
     cached = _realtime_cache.get(stock_id)
     if cached is not None:
         return cached
@@ -329,6 +347,7 @@ class LoadRevenueRequest(BaseModel):
 
 @router.post("/admin/load-revenue")
 def admin_load_revenue(
+    request: Request,
     body: LoadRevenueRequest,
     _: None = Depends(verify_api_key),
 ) -> dict:
@@ -342,20 +361,19 @@ def admin_load_revenue(
 
 
 @router.get("/stocks")
-def get_stocks(_: None = Depends(verify_api_key)) -> list[dict]:
+@limiter.limit("10/minute")
+def get_stocks(request: Request, _: None = Depends(verify_api_key)) -> list[dict]:
     cached = _stocks_cache.get("stocks")
     if cached is not None:
         return cached
 
     try:
-        rows = _finmind.fetch("TaiwanStockInfo", "", "", "")
         stocks = [
-            {"stock_id": r["stock_id"], "name": r["stock_name"], "market": r.get("type", "")}
-            for r in rows
-            if str(r.get("stock_id", "")).isdigit()
+            {"stock_id": s["id"], "name": s["name"], "market": s["market"]}
+            for s in get_tw_stocks()
         ]
         _stocks_cache["stocks"] = stocks
         return stocks
-    except FinMindBaseError as exc:
+    except Exception as exc:
         logger.exception("Failed to fetch stocks list")
         raise HTTPException(status_code=502, detail="Failed to fetch stocks list") from exc

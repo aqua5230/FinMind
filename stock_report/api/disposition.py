@@ -5,11 +5,12 @@ from datetime import date, datetime
 from typing import Any
 
 from cachetools import TTLCache
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from pydantic import BaseModel, ConfigDict
 import requests
 import urllib3
 
+from stock_report.api._limiter import limiter
 from stock_report.data.db import query_prices
 
 
@@ -183,7 +184,8 @@ def _compute_disposition_scan() -> DispositionScanResponse:
 
 
 @router.get("/api/disposition-scan", response_model=DispositionScanResponse)
-async def disposition_scan() -> DispositionScanResponse:
+@limiter.limit("5/minute")
+async def disposition_scan(request: Request) -> DispositionScanResponse:
     cached = _disposition_scan_cache.get(DISPOSITION_CACHE_KEY)
     if cached is not None:
         return cached

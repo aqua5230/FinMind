@@ -8,11 +8,12 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from cachetools import TTLCache
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from pydantic import BaseModel, ConfigDict
 import requests
 import urllib3
 
+from stock_report.api._limiter import limiter
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -175,7 +176,8 @@ def _compute_cb_scan() -> CbScanResponse:
 
 
 @router.get("/api/cb-scan", response_model=CbScanResponse)
-async def cb_scan() -> CbScanResponse:
+@limiter.limit("5/minute")
+async def cb_scan(request: Request) -> CbScanResponse:
     cached = _cb_scan_cache.get(CB_SCAN_CACHE_KEY)
     if cached is not None:
         return cached

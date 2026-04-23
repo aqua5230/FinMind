@@ -7,10 +7,11 @@ import time
 from typing import Any
 
 from cachetools import TTLCache
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from pydantic import BaseModel, ConfigDict
 import requests
 
+from stock_report.api._limiter import limiter
 from stock_report.data.db import query_prices_bulk_recent
 
 router = APIRouter()
@@ -247,7 +248,8 @@ def _compute_chips_scan() -> ChipsScanResponse:
 
 
 @router.get("/api/chips-scan", response_model=ChipsScanResponse)
-async def chips_scan() -> ChipsScanResponse:
+@limiter.limit("5/minute")
+async def chips_scan(request: Request) -> ChipsScanResponse:
     cached = _chips_scan_cache.get("chips_scan")
     if cached is not None:
         return cached

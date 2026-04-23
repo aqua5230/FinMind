@@ -7,10 +7,11 @@ import time
 from typing import Any
 
 from cachetools import TTLCache
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from pydantic import BaseModel, ConfigDict
 import requests
 
+from stock_report.api._limiter import limiter
 
 router = APIRouter()
 
@@ -202,7 +203,8 @@ def _compute_institution_scan() -> InstitutionScanResponse:
 
 
 @router.get("/api/institution-scan", response_model=InstitutionScanResponse)
-async def institution_scan() -> InstitutionScanResponse:
+@limiter.limit("5/minute")
+async def institution_scan(request: Request) -> InstitutionScanResponse:
     cached = _institution_scan_cache.get("institution_scan")
     if cached is not None:
         return cached

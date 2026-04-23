@@ -8,9 +8,10 @@ from typing import Any
 import numpy as np
 import pandas as pd
 from cachetools import TTLCache
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from pydantic import BaseModel, ConfigDict
 
+from stock_report.api._limiter import limiter
 from stock_report.data import db
 
 
@@ -135,7 +136,8 @@ def _compute_pairs() -> list[dict[str, Any]]:
 
 
 @router.get("/api/pair-scan", response_model=PairScanResponse)
-async def pair_scan() -> PairScanResponse:
+@limiter.limit("5/minute")
+async def pair_scan(request: Request) -> PairScanResponse:
     async with _pair_lock:
         cached = _pair_cache.get("pairs")
         if cached is not None:

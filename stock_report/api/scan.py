@@ -5,12 +5,12 @@ import logging
 from datetime import datetime
 
 from cachetools import TTLCache
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from pydantic import BaseModel, ConfigDict
 import yfinance as yf
 
+from stock_report.api._limiter import limiter
 from stock_report.data import db
-from stock_report.api.finmind import FinMindClient
 from stock_report.data.tw_stocks import TW_STOCK_IDS
 
 
@@ -21,7 +21,6 @@ TWII_MA_PERIOD = 200
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-_finmind = FinMindClient()
 _stock_name_cache: TTLCache[str, dict[str, str]] = TTLCache(maxsize=1, ttl=3600)
 _revenue_scan_cache: TTLCache[str, "RevenueScanResponse"] = TTLCache(maxsize=1, ttl=86400)
 _revenue_scan_lock = asyncio.Lock()
@@ -52,22 +51,21 @@ def _get_stock_names() -> dict[str, str]:
         return cached
 
     try:
-        rows = _finmind.fetch("TaiwanStockInfo", "", "", "")
+        from stock_report.data.tw_stocks import get_tw_stocks
+
+        rows = get_tw_stocks()
     except Exception as exc:
         logger.warning("Failed to fetch stock names for scan: %s", exc)
         return {}
 
-    names = {
-        str(row["stock_id"]): str(row["stock_name"])
-        for row in rows
-        if str(row.get("stock_id", "")) in TW_STOCK_IDS and row.get("stock_name")
-    }
+    names = {stock["id"]: stock["name"] for stock in rows if stock["id"] in TW_STOCK_IDS}
     _stock_name_cache["stock_names"] = names
     return names
 
 
 @router.get("/revenue-scan", response_model=RevenueScanResponse)
-async def revenue_scan_stocks() -> RevenueScanResponse:
+@limiter.limit("5/minute")
+async def revenue_scan_stocks(request: Request) -> RevenueScanResponse:
     cached = _revenue_scan_cache.get("revenue_scan")
     if cached is not None:
         return cached

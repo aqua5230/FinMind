@@ -1,6 +1,6 @@
 # SESSION.md — FinMind 專案狀態
 
-更新時間：2026-04-24（session 20，技術債清理第一輪）
+更新時間：2026-04-24（session 21，安全修補 S1）
 
 ---
 
@@ -231,13 +231,77 @@ Gemini 建議：雙重停損（Z=3.5 + 虧損 5-10%）
 - `frontend` tsc --noEmit 通過
 - `pytest tests/` 18/18 通過
 
-**待使用者決定（下一輪）**
-- 個股報告管線整條移除（`POST /api/report`、`GET /api/report/{id}`、`stock_report/cli.py`、`services/report_service.py`、`report/generator.py`、`api/deepseek.py`、`api/gemini.py`，前端零引用）
-- `twse_broker.py` 根目錄孤兒檔
-- `台股量化交易策略研究報告.md`、`三竹股市說明書.pdf` 處置
-- `backtest_pairs.py`、`grid_search_pairs.py`、`backtest_strength_pullback.py` 是否 commit + 搬 `backtests/`
-- Spec 同步：`specs/roadmap.md` / `current-state.md` 把處置股、可轉債從「Phase 3 延後」改為「已完成部署」
-- `tests/` 當前被 gitignore，等於無 CI 把關
+**待使用者決定（下一輪，暫停）**
 
-**注意**
-- 各 backtest 腳本（如 `backtest_strength_pullback.py` L50-52）仍寫死輸出檔名為相對路徑，下次執行會再生在 root。需一併改成寫入 `backtests/outputs/`。
+以下 Q1-Q8 於 2026-04-24 盤點後暫停，等使用者拍板再動手。
+
+### Q1｜個股報告管線整條移除
+- 理由：前端零引用（grep `/api/report` / `fetchReport` 都 0 命中），是舊 FinMind 範例遺留
+- 影響檔：
+  - Route：`POST /api/report`、`GET /api/report/{stock_id}`（`stock_report/api/routes.py`）
+  - Python：`stock_report/cli.py`、`services/report_service.py`、`report/generator.py`、`api/deepseek.py`、`api/gemini.py`（5 檔全刪）
+  - `stock_report/models.py` 的 `StockReport`（需確認無他處引用）
+  - `requirements.txt`：`anthropic`、`typer`
+  - `config.py`：`llm_api_key`、`deepseek_api_key`、`deepseek_model`、`gemini_api_key`、`gemini_model`、`generation`（6 欄位）
+  - `.env.example`：對應變數
+- Claude 建議：**移除**（`specs/mission.md` 明確不含 AI 報告功能；未來真要做重寫更快）
+
+### Q2｜`twse_broker.py` 根目錄孤兒
+- 現況：root 孤兒檔 268 行，CLI 解析 TWSE 卷商交易明細 ZIP，grep 零引用
+- Claude 建議：**搬 `scripts/legacy/twse_broker.py`**（`scripts/` 已 gitignore，保留本機不入 repo）
+
+### Q3｜`台股量化交易策略研究報告.md`
+- 現況：182 行研究筆記（RSI 失敗分析 + 替代策略方向）
+- Claude 建議：**搬 `docs/research/台股量化策略初步分析.md`**（重命名 + 新增 `docs/research/` 目錄版控）
+
+### Q4｜`三竹股市說明書.pdf`（10MB）
+- 現況：已 gitignore（`*.pdf`），僅本機
+- Claude 建議：**搬 `~/Documents/FinMind/`**（repo root 不該放個人資料）
+
+### Q5｜回測輸出 gitignore ✅ 已完成（此輪）
+
+### Q6｜回測腳本搬 `backtests/` + 輸出路徑修正
+- 涉檔：`backtest_revenue.py`（tracked）、`backtest_pairs.py`、`grid_search_pairs.py`、`backtest_strength_pullback.py`（untracked）
+- Claude 建議：**搬 `backtests/{revenue,pairs,pairs_gridsearch,strength_pullback}.py`**，腳本內輸出路徑改寫成 `backtests/outputs/...`，然後 commit
+- 注意：目前腳本輸出路徑是相對路徑（如 `backtest_strength_pullback.py` L50-52），下次執行會在 cwd 生檔
+
+### Q7｜Spec 同步
+- `specs/roadmap.md` 把處置股、可轉債從「Phase 3 延後」改「已完成部署」
+- `specs/current-state.md` 把法人籌碼從「待做」改為「已部署」
+- `specs/features/remove-rsi-legacy.md` 清掉「待刪 backtest.py / backtest_v2.py / grid_search.py」條列（SESSION.md 已寫刪了）
+- Claude 建議：**全改**
+
+### Q8｜`tests/` 當前被 gitignore = 無 CI 把關
+- 現況：`.gitignore` 有 `tests/`，導致 `tests/test_helpers.py`、`tests/test_routes.py` 都沒版控
+- Claude 建議：**分兩步**——先從 gitignore 拿掉 + commit，CI（GitHub Actions）之後單獨做
+
+---
+
+## 2026-04-24 安全修補 S1（Codex 執行 + Claude review）
+
+**主體完成**
+- `verify_api_key` fail-closed（生產：API_KEY 未設 → 503；DEBUG=true bypass 本機）
+- `/api/stocks` 改用 `get_tw_stocks()`（TWSE/TPEX 免費 OpenAPI），移除 FinMind token 洩漏
+- `stock_report/api/scan.py` 同步換 `get_tw_stocks()`，移除 FinMindClient
+- 新增 `stock_report/api/_limiter.py`（slowapi Limiter，per-IP）
+- 全站加 `@limiter.limit`：`/price` 30/min、`/realtime` 60/min、`/stocks` 10/min、`/signals*` 20/min、`/report*` 5/min、各 scan 5/min
+- `main.py` 新增 `verify_origin` dependency，掛在所有 HTTP router（WebSocket 不掛），白名單 `/api/health` + `/api/db-status`
+- `_price_cache` TTL 600→3600
+- `requirements.txt` 加 `slowapi>=0.1.9`
+
+**驗證**
+- `python3 -c "import main"` 通過
+- `pytest tests/` 18/18 通過
+- `tsc --noEmit` exit 0
+
+**待清技術債（下一輪 S1.1）**
+- 債 1：`verify_api_key` 有 sentinel 後門（`routes.py:168-170`），為了讓舊測試 `test_verify_api_key_passes_when_api_key_is_not_configured` pass。根本修法：改測試語意（fail-closed 後應 raise 503，不是 pass），同步移除後門。
+- 債 2：`verify_origin` 用 `origin.startswith()`（`main.py:55`），可被 `localhost:3000.evil.com` 形式繞過。實際影響接近零（CORSMiddleware + X-API-Key 是主防線），但該改成精確比對（`origin == item`）。
+
+**S2（後續，未排）**
+- `stock_prices` 擴 `open` / `high` 欄位（ALTER migration + 重跑 sync）
+- `/api/price` 改讀 DB，完全移除 FinMind 呼叫
+
+**Railway 部署注意**
+- 部署前必須設 `API_KEY` 環境變數，否則所有受保護端點 503
+- 必須設 `ALLOWED_ORIGINS=https://frontend-production-8b27.up.railway.app`，否則 verify_origin 只放行 localhost，前端 production 會 403

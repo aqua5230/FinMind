@@ -88,11 +88,19 @@ FinMind/
 
 ---
 
-## 下個 Session 優先任務
+## 下個 Session 優先任務（續 S1）
 
-| 優先度 | 項目 | 說明 |
-|--------|------|------|
-| — | 所有已規劃 Feature 完成 | Feature 5 已完成 |
+| 優先度 | 項目 | 下一步 |
+|--------|------|--------|
+| 🔴 高 | 推 S1 到 Railway | **先**在 Railway 設 `API_KEY` + `ALLOWED_ORIGINS` 環境變數，再 `git push`。若直接 push 會 403/503 全死 |
+| 🟡 中 | S1.1 補兩個架構債 | `verify_api_key` sentinel 後門 + `verify_origin` startswith bypass。任務書已在 session 21 尾結論備好 |
+| 🟢 低 | Q1-Q8 清理 | 見下方「待使用者決定（下一輪）」段，使用者已要求「先紀錄，暫時不處理」|
+| 🟢 低 | S2 根治 /api/price | `stock_prices` 擴 open/high 欄、重抓、改讀 DB。先等 S1 在 Railway 穩定運作再動 |
+
+**本地未 push 的 commits**
+- `f7acc74` 安全修補 S1
+- `b80c6bb` 技術債清理第一輪
+- 兩者累計：11 files changed + 9 files changed，**未推 Railway**
 
 ---
 

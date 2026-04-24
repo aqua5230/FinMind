@@ -1,12 +1,16 @@
 # SESSION.md — FinMind 專案狀態
 
-更新：2026-04-24（session 21）
+更新：2026-04-25（session 22）
 
 ## 現況
 
 台股量化掃描 + 回測系統，前後端已部署 Railway，PostgreSQL 儲存價格/訊號/月營收。
 
-Session 21 做了 S1 安全修補（fail-closed、去 FinMind token 洩漏、全站 rate limit + verify_origin）。已 commit 未 push。
+Session 21 做 S1 安全修補（verify_api_key、verify_origin、全站 rate limit）。
+Session 22 清技術債（untracked 檔分類、gitignore 擴充、specs/AGENTS/CLAUDE commit）+
+前端改 BFF 架構（Next.js route handler `/api/[...path]` 在 server-side 代帶
+X-API-Key，瀏覽器端不持 key）。本地 dev 已實測 `hasApiKey: true` outbound。
+全部 commit 完，未 push。本地領先 origin/main 91 commits。
 
 ## 部署
 
@@ -16,11 +20,14 @@ Session 21 做了 S1 安全修補（fail-closed、去 FinMind token 洩漏、全
 
 ## 下一步
 
-### 🔴 推 S1 到 Railway（必做，順序不可顛倒）
-1. Railway 後端 service 設 `API_KEY=<長字串>`
-2. 設 `ALLOWED_ORIGINS=https://frontend-production-8b27.up.railway.app,http://localhost:3000`
-3. `git push` 觸發部署
-未設環境變數直接 push → 所有端點 403/503。
+### 🔴 推 S1 + BFF 到 Railway（順序不可顛倒）
+1. **後端 FinMind service**：`API_KEY=<長字串>` + `ALLOWED_ORIGINS=https://frontend-production-8b27.up.railway.app,http://localhost:3000`
+2. **前端 frontend service**：`API_BASE_URL=https://finmind-production-23fd.up.railway.app` + **同一把** `API_KEY`（server-side only，**不可加 NEXT_PUBLIC_ 前綴**，否則 bundle 洩漏）
+3. `git push` → 後端 Railway 自動部署
+4. `./deploy.sh`（專案根目錄）→ 前端部署
+5. 煙霧測試：開前端 → 跑一個掃描，Network 應全是同源 `/api/*` 且 200
+
+4 個環境變數缺一不可：後端缺 `API_KEY` → 503；前端缺 `API_BASE_URL` 或 `API_KEY` → BFF 回 500「BFF not configured」。
 
 ### 🟡 S1.1 補兩個架構債（可選）
 - `verify_api_key` 有 sentinel 後門（`routes.py:168-170`，為讓舊測試 pass）→ 改測試語意 + 移除後門
@@ -52,6 +59,7 @@ Q1 個股報告管線整條移除（前端零引用）｜Q2 `twse_broker.py` →
 - `stock_report/data/db.py` PostgreSQL schema/CRUD（含 `stock_prices`、`signal_records`、`stock_revenue_monthly`）
 - `stock_report/data/price_sync.py` yfinance 每日 16:30 同步
 - `frontend/app/page.tsx` 量化終端機（1096 行，過重，新功能別再塞）
+- `frontend/app/api/[...path]/route.ts` BFF catch-all proxy（server-side 代帶 X-API-Key，session 22）
 
 ## 禁止碰
 
@@ -71,8 +79,7 @@ Q1 個股報告管線整條移除（前端零引用）｜Q2 `twse_broker.py` →
 
 ## 本地未 push commits
 
-- `55a0b27` SESSION.md 封存 session 21
-- `f7acc74` 安全修補 S1
-- `b80c6bb` 技術債清理第一輪
+Session 21：`b80c6bb` 技術債清理｜`f7acc74` S1 安全修補｜`55a0b27` SESSION 封存
+Session 22：`118f2a4` gitignore 擴充｜`282a481` AGENTS/CLAUDE/specs/ 補上｜`0a82f1f` 前端 BFF 架構
 
 詳細改動細節靠 `git log` / `git show <hash>`，不在此檔重複。

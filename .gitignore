@@ -21,3 +21,7 @@ scripts/
 tests/
 frontend/tsconfig.tsbuildinfo
 backtests/outputs/
+
+.claude/
+trading/
+台股量化交易策略研究報告.md

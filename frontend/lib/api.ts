@@ -1,14 +1,6 @@
 import type { LatestPrice, PriceResponse, StockBar } from "@/lib/types";
 
-function normalizeApiUrl(value: string | undefined): string {
-  if (!value) {
-    return "";
-  }
-
-  return value.endsWith("/") ? value.slice(0, -1) : value;
-}
-
-const API_URL = normalizeApiUrl(process.env.NEXT_PUBLIC_API_BASE_URL ?? process.env.API_BASE_URL);
+const API_URL = "";
 
 async function readErrorMessage(response: Response): Promise<string> {
   try {

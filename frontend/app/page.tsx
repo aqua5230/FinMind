@@ -644,6 +644,9 @@ export default function Home() {
                     更新：{new Date(pairComputedAt).toLocaleTimeString('zh-TW')}
                   </span>
                 )}
+                <span className="inline-flex items-center rounded-full border border-orange-500/40 bg-orange-950/70 px-2.5 py-1 text-[11px] font-semibold text-orange-300">
+                  ⚠️ 研究中｜回測未達實盤標準
+                </span>
                 <span className="text-xs text-slate-500 ml-auto">共 {pairResults.length} 對</span>
                 <button
                   type="button"
@@ -733,6 +736,9 @@ export default function Home() {
               <div className="flex items-center gap-2 px-3 py-2 border-b border-[#222222]">
                 <span className="text-xs text-[#8e8e93]">
                   {institutionScannedAt ? `更新：${institutionScannedAt.slice(0, 16).replace('T', ' ')}` : '法人連買篩選'}
+                </span>
+                <span className="inline-flex items-center rounded-full border border-orange-500/40 bg-orange-950/70 px-2.5 py-1 text-[11px] font-semibold text-orange-300">
+                  ⚠️ 待回測驗證
                 </span>
                 <button
                   type="button"

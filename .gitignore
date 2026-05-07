@@ -18,7 +18,6 @@ trading/config*.ini
 *.p12
 
 scripts/
-tests/
 frontend/tsconfig.tsbuildinfo
 backtests/outputs/
 

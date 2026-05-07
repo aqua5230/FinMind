@@ -4,6 +4,7 @@ import threading
 from contextlib import asynccontextmanager
 from datetime import date, datetime, time, timedelta
 from functools import lru_cache
+from urllib.parse import urlparse
 from zoneinfo import ZoneInfo
 
 from fastapi import Depends, FastAPI, HTTPException, Request
@@ -52,7 +53,13 @@ async def verify_origin(request: Request) -> None:
     allowed = _allowed_origins()
     origin = request.headers.get("origin") or ""
     referer = request.headers.get("referer") or ""
-    if any(origin.startswith(item) or referer.startswith(item) for item in allowed if item):
+    parsed_referer = urlparse(referer)
+    referer_origin = (
+        f"{parsed_referer.scheme}://{parsed_referer.netloc}"
+        if parsed_referer.scheme and parsed_referer.netloc
+        else ""
+    )
+    if any(origin == item or referer_origin == item for item in allowed if item):
         return
     raise HTTPException(status_code=403, detail="Origin not allowed")
 

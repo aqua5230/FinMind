@@ -165,9 +165,6 @@ def verify_api_key(x_api_key: str | None = Header(default=None, alias="X-API-Key
     if settings.debug:
         return
     if not settings.api_key:
-        # Direct unit-test calls bypass FastAPI's header injection and pass the Header sentinel.
-        if x_api_key is not None and not isinstance(x_api_key, str):
-            return
         raise HTTPException(status_code=503, detail="API key not configured")
     if x_api_key != settings.api_key:
         raise HTTPException(status_code=403, detail="Forbidden")

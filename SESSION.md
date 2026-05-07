@@ -20,14 +20,20 @@ X-API-Key，瀏覽器端不持 key）。本地 dev 已實測 `hasApiKey: true` o
 
 ## 下一步
 
-### 🔴 推 S1 + BFF 到 Railway（順序不可顛倒）
-1. **後端 FinMind service**：`API_KEY=<長字串>` + `ALLOWED_ORIGINS=https://frontend-production-8b27.up.railway.app,http://localhost:3000`
-2. **前端 frontend service**：`API_BASE_URL=https://finmind-production-23fd.up.railway.app` + **同一把** `API_KEY`（server-side only，**不可加 NEXT_PUBLIC_ 前綴**，否則 bundle 洩漏）
-3. `git push` → 後端 Railway 自動部署
-4. `./deploy.sh`（專案根目錄）→ 前端部署
-5. 煙霧測試：開前端 → 跑一個掃描，Network 應全是同源 `/api/*` 且 200
+### 🔴 推 S1 + BFF 到 Railway
 
-4 個環境變數缺一不可：後端缺 `API_KEY` → 503；前端缺 `API_BASE_URL` 或 `API_KEY` → BFF 回 500「BFF not configured」。
+**環境變數（已設 ✅，`--skip-deploys`）**
+- 後端 FinMind：`API_KEY`（新產 64 字元）+ `ALLOWED_ORIGINS=https://frontend-production-8b27.up.railway.app`（評估後不含 localhost，BFF 架構下白名單宜窄）
+- 前端 frontend：同把 `API_KEY` + `API_BASE_URL=https://finmind-production-23fd.up.railway.app`
+- 前端已清殘留孤兒變數 `NEXT_PUBLIC_API_BASE_URL`、`NEXT_PUBLIC_API_URL`
+- API_KEY 值只存 Railway，取回方式見 memory `project_api_key_location.md`
+
+**待執行（使用者點頭才動）**
+1. `git push` → 後端 Railway 自動部署（1-2 分鐘）
+2. `./deploy.sh`（專案根目錄）→ 前端部署
+3. 煙霧測試：開前端 → 跑一個掃描，Network 應全是同源 `/api/*` 且 200
+
+炸了的回滾：Railway dashboard rollback 前後端各自的上一版。
 
 ### 🟡 S1.1 補兩個架構債（可選）
 - `verify_api_key` 有 sentinel 後門（`routes.py:168-170`，為讓舊測試 pass）→ 改測試語意 + 移除後門

@@ -24,3 +24,12 @@ backtests/outputs/
 .claude/
 trading/
 台股量化交易策略研究報告.md
+
+# 內部開發文件（保留本機，不進公開 repo）
+CLAUDE.md
+AGENTS.md
+SKILL.md
+SESSION.md
+TASK_LOG.md
+shared_context.md
+specs/

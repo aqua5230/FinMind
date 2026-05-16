@@ -1,11 +1,10 @@
-from __future__ import annotations
-
 import logging
 from datetime import date
+from typing import Annotated
 
 import requests
 from cachetools import TTLCache
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
+from fastapi import APIRouter, Body, Depends, Header, HTTPException, Query, Request
 from pydantic import BaseModel, ConfigDict, model_validator
 
 from stock_report.api._limiter import limiter
@@ -24,10 +23,10 @@ service = ReportService()
 _finmind = FinMindClient()
 logger = logging.getLogger(__name__)
 
-_stocks_cache: TTLCache[str, list[dict]] = TTLCache(maxsize=1, ttl=3600)
-_price_cache: TTLCache[str, PriceResponse] = TTLCache(maxsize=200, ttl=3600)
-_realtime_cache: TTLCache[str, dict] = TTLCache(maxsize=200, ttl=30)
-_market_cache: TTLCache[str, str] = TTLCache(maxsize=200, ttl=86400)
+_stocks_cache = TTLCache(maxsize=1, ttl=3600)
+_price_cache = TTLCache(maxsize=200, ttl=3600)
+_realtime_cache = TTLCache(maxsize=200, ttl=30)
+_market_cache = TTLCache(maxsize=200, ttl=86400)
 
 
 class ReportRequest(BaseModel):
@@ -64,7 +63,7 @@ class PriceQueryParams(BaseModel):
     end_date: date
 
     @model_validator(mode="after")
-    def validate_date_range(self) -> PriceQueryParams:
+    def validate_date_range(self) -> "PriceQueryParams":
         if self.start_date > self.end_date:
             raise ValueError("start_date cannot be greater than end_date")
         return self
@@ -177,7 +176,7 @@ router.include_router(scan_router, dependencies=[Depends(verify_api_key)])
 @limiter.limit("5/minute")
 def create_report(
     request: Request,
-    payload: ReportRequest,
+    payload: Annotated[ReportRequest, Body()],
     _: None = Depends(verify_api_key),
 ) -> StockReport:
     return _generate_report(
@@ -345,7 +344,7 @@ class LoadRevenueRequest(BaseModel):
 @router.post("/admin/load-revenue")
 def admin_load_revenue(
     request: Request,
-    body: LoadRevenueRequest,
+    body: Annotated[LoadRevenueRequest, Body()],
     _: None = Depends(verify_api_key),
 ) -> dict:
     records = [r.model_dump() for r in body.records]
